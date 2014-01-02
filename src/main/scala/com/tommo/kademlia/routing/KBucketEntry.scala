@@ -5,38 +5,39 @@ import scala.collection.immutable.TreeSet
 import com.tommo.kademlia.misc.time.Clock
 import com.tommo.kademlia.protocol.Node
 
-class KBucket(val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeStampNode]) {
+class KBucketEntry(val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeStampNode]) {
   self: Clock =>
 
   var nodes = TreeSet[TimeStampNode]()
 
-  def add(node: Node): Option[Node] = {
+  def add(node: Node) = {
     def newTimeStampNode = TimeStampNode(node, getTime())
 
     bleh({
       case Some(existingNode) => updateNodesRef(nodes - existingNode + newTimeStampNode)
       case None if size < capacity => updateNodesRef(nodes + newTimeStampNode)
     })(node)
-    
+
   }
 
-  def remove(node: Node): Option[Node] = bleh({case Some(existingNode) => updateNodesRef(nodes - existingNode)})(node)
- 
-  private def bleh(matchedFunc: PartialFunction[Option[TimeStampNode], Unit])(node: Node): Option[Node] = {
+  def remove(node: Node) = bleh({ case Some(existingNode) => updateNodesRef(nodes - existingNode) })(node)
+
+  private def bleh(matchedFunc: PartialFunction[Option[TimeStampNode], Unit])(node: Node): Boolean = {
     val foundNode = findNode(node)
 
-    if(matchedFunc.isDefinedAt(foundNode)) {
-    	matchedFunc(foundNode)
-    	None
+    if (matchedFunc.isDefinedAt(foundNode)) {
+      matchedFunc(foundNode)
+      true
     } else
-        Some(node)
+      false
   }
 
   private def updateNodesRef(op: => TreeSet[TimeStampNode]) = nodes = op
 
-  private def findNode(node: Node) = nodes.find(_.node.id == node.id)
+  private def findNode(node: Node) = nodes.find(_.node == node)
 
-  def getHighestOrder = nodes.max
+  def getHighestOrder = nodes.max.node
+  def getLowestOrder = nodes.min.node
 
   def getNodes: List[Node] = getNodes(size)
   def getNodes(numNodes: Int) = nodes.take(numNodes).map(_.node).toList
@@ -44,6 +45,7 @@ class KBucket(val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeStampN
   def size = nodes.size
 }
 
-object KBucket {
-  implicit def defaultEviction = LastSeenOrdering()
+object KBucketEntry {
+  import com.tommo.kademlia.misc.time.SystemClock
+  def apply(capacity: Int) = new KBucketEntry(capacity)(LastSeenOrdering()) with SystemClock
 }
