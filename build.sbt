@@ -11,7 +11,6 @@ libraryDependencies ++=
 	"com.typesafe.akka" % "akka-testkit_2.10" % "2.2.3" ::
 	"com.typesafe.akka" % "akka-remote_2.10" % "2.2.3" ::
 	"org.scalatest" % "scalatest_2.10" % "2.0" % "test" ::
-	"org.mockito" % "mockito-all" % "1.9.5" % "test" ::
 	Nil
 
 
