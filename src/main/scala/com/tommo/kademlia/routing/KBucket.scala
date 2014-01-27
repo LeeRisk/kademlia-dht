@@ -5,7 +5,7 @@ import scala.collection.immutable.TreeSet
 import com.tommo.kademlia.misc.time.Clock
 import com.tommo.kademlia.protocol.Node
 
-class KBucketEntry(val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeStampNode]) {
+class KBucket(val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeStampNode]) {
   self: Clock =>
 
   var nodes = TreeSet[TimeStampNode]()
@@ -36,16 +36,18 @@ class KBucketEntry(val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeS
 
   private def findNode(node: Node) = nodes.find(_.node == node)
 
-  def getHighestOrder = nodes.max.node
   def getLowestOrder = nodes.min.node
 
   def getNodes: List[Node] = getNodes(size)
   def getNodes(numNodes: Int) = nodes.take(numNodes).map(_.node).toList
 
   def size = nodes.size
+  
+  def isFull = size >= capacity
+  
 }
 
-object KBucketEntry {
+object KBucket {
   import com.tommo.kademlia.misc.time.SystemClock
-  def apply(capacity: Int) = new KBucketEntry(capacity)(LastSeenOrdering()) with SystemClock
+  def apply(capacity: Int) = new KBucket(capacity)(LastSeenOrdering()) with SystemClock
 }
