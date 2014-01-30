@@ -1,6 +1,9 @@
 package com.tommo.kademlia.routing
 
 import com.tommo.kademlia.BaseUnitTest
+import java.util.concurrent.Executors
+import scala.concurrent._
+
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.protocol._
 
@@ -9,15 +12,17 @@ class KBucketSetTest extends BaseUnitTest {
   trait Fixture {
     implicit val selfId = Id("0000")
 
-    def alwaysTrue(node: Node) = true
+    def alwaysTrue(node: AbstractNode) = true
 
     trait SmallKBucketProvider extends KBucketProvider {
-      override def newKBucketEntry = KBucket(2)
+    	def capacity = 2
     }
 
-    val bucketSet = new KBucketSet(selfId) with SmallKBucketProvider
+    val bucketSet = new KBucketSet(selfId) with SmallKBucketProvider {
+      type T = Node
+    }
 
-    def addNode(nodes: List[Node], replaceFn: Node => Boolean = alwaysTrue) {
+    def addNode(nodes: List[Node], replaceFn: AbstractNode => Boolean = alwaysTrue) {
       for (node <- nodes) {
         Thread.sleep(1) // resolution of SystemClock is 1ms
         bucketSet.add(node)(replaceFn)

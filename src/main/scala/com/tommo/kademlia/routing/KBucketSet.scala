@@ -1,18 +1,19 @@
 package com.tommo.kademlia.routing
 
 import com.tommo.kademlia.identity.Id
-import com.tommo.kademlia.protocol.Node
+import com.tommo.kademlia.protocol.AbstractNode
 
 class KBucketSet(id: Id) {
   self: KBucketProvider =>
-
+    
+    
   val kBucketArr = Array.fill(id.size)(newKBucketEntry)
 
   def apply(index: Int) = kBucketArr(index).getNodes
 
   val addressSize = id.size
 
-  def add(node: Node)(implicit replaceOldest: Node => Boolean) {
+  def add(node: T)(implicit replaceOldest: AbstractNode => Boolean) {
     val lp = id.longestPrefixLength(node.id)
     val kbucket = kBucketArr(addressSize - lp - 1)
 
@@ -26,18 +27,17 @@ class KBucketSet(id: Id) {
       kbucket.add(node)
   }
 
-  def getClosestInOrder(k: Int = kBucketArr(0).capacity, node: Node) = {
+  def getClosestInOrder(k: Int = kBucketArr(0).capacity, node: AbstractNode) = {
     val indices = id.scanLeftPrefix(node.id)
     val diff = Stream.range(0, addressSize, 1).diff(indices)
 
     val traverseOrder = indices.toStream ++ diff
 
-    def buildKClosest(count: Int = 0, acc: List[Node] = List(), traverseOrder: Stream[Int] = traverseOrder): List[Node] = {
+    def buildKClosest(count: Int = 0, acc: List[AbstractNode] = List(), traverseOrder: Stream[Int] = traverseOrder): List[AbstractNode] = {
       if (count < k && !traverseOrder.isEmpty) {
         val bucketIndex = traverseOrder.head
         val kbucket = kBucketArr(bucketIndex)
         val nodes = kbucket.getNodes.slice(0, k - count)
-
         buildKClosest(count + nodes.size, acc ++ nodes, traverseOrder.tail)
       } else
         acc
