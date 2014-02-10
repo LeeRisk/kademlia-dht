@@ -6,7 +6,7 @@ import org.scalatest._
 class IdTest extends BaseUnitTest {
   def idFactory = Id(8)_
 
-  "An Id" should "be able to compute distance between a node with the same address size" in {
+  "Id" should "be able to compute distance between a node with the same address size" in {
     val id = idFactory(8)
     val anotherId = idFactory(3)
 

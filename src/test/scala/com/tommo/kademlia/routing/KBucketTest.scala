@@ -6,7 +6,7 @@ import com.tommo.kademlia.misc.time.Clock
 import com.tommo.kademlia.protocol._
 import com.tommo.kademlia.identity._
 
-class KBucketEntryTest extends BaseUnitTest {
+class KBucketTest extends BaseUnitTest  {
 
   trait Fixture {
     trait IncrementingClock extends Clock {
@@ -17,10 +17,10 @@ class KBucketEntryTest extends BaseUnitTest {
     import java.util.UUID.randomUUID
 
     def withCapacity(capacity: Int) = new KBucket(capacity)(LastSeenOrdering()) with IncrementingClock {
-      type T = Node
+      type T = RemoteNode
     }
     
-    def withRandomNodes(numNodes: Int) = for (i <- List.range(0, numNodes)) yield (Node(Host("hostname:9009"), Id(randomUUID.toString.getBytes())))
+    def withRandomNodes(numNodes: Int) = for (i <- List.range(0, numNodes)) yield (RemoteNode(mockHost, Id(randomUUID.toString.getBytes())))
     
     def aRandomNode = withRandomNodes(1).head
 
@@ -34,7 +34,7 @@ class KBucketEntryTest extends BaseUnitTest {
     }
   }
 
-  "A KBucketEntry" should "add a new node if the capacity is not full" in new Fixture {
+  "KBucket" should "add a new node if the capacity is not full" in new Fixture {
     val (kbucket, _) = prefillKBucket(capacity = 2, numNodes = 0)
 
     val newNode = aRandomNode
@@ -86,7 +86,7 @@ class KBucketEntryTest extends BaseUnitTest {
       def getTime() = { currentCount += 1; currentCount }
     }
     
-    val kbucket = new KBucket(2)(LastSeenOrdering()) with StubbedClock { type T = Node }
+    val kbucket = new KBucket(2)(LastSeenOrdering()) with StubbedClock { type T = RemoteNode }
     
     kbucket.add(aRandomNode)
     

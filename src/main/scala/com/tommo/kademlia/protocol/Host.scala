@@ -2,10 +2,9 @@ package com.tommo.kademlia.protocol
 
 case class Host(hostname: String, port: Int) {
   import Host._
-  import com.tommo.kademlia.invariant
 
   val (startPort, endPort) = PortRange
-  invariant(port < startPort && port > endPort, s"Port range must be in the range $startPort and $endPort inclusive")
+  require(port >= startPort && port <= endPort, s"Port range must be in the range $startPort and $endPort inclusive")
 
 }
 

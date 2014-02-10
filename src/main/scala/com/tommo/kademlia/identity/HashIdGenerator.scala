@@ -2,7 +2,7 @@ package com.tommo.kademlia.identity
 
 import java.security.MessageDigest
 
-class HashIdGenerator(md: MessageDigest) extends IdGenerator {
+class HashIdGenerator(md: MessageDigest) extends ByteStreamIdGenerator {
   
   def generateId(input: Array[Byte]) = {
     md.reset()

@@ -3,18 +3,17 @@ package com.tommo.kademlia.routing
 import scala.collection.immutable.TreeSet
 
 import com.tommo.kademlia.misc.time.Clock
-import com.tommo.kademlia.protocol.AbstractNode
+import com.tommo.kademlia.protocol.Node
 
 class KBucket(val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeStampNode]) {
   self: Clock =>
 
-  type T <: AbstractNode
+  type T <: Node
 
   var nodes = TreeSet[TimeStampNode]()
 
   def add(node: T) = {
     def newTimeStampNode = TimeStampNode(node, getTime())
-
     applyFnToFoundNode({
       case Some(existingNode) => updateNodesRef(nodes - existingNode + newTimeStampNode)
       case None if size < capacity => updateNodesRef(nodes + newTimeStampNode)
@@ -23,7 +22,7 @@ class KBucket(val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeStampN
 
   def remove(node: T) = applyFnToFoundNode({ case Some(existingNode) => updateNodesRef(nodes - existingNode) })(node)
 
-  private def applyFnToFoundNode(fn: PartialFunction[Option[TimeStampNode], Unit])(node: AbstractNode): Boolean = {
+  private def applyFnToFoundNode(fn: PartialFunction[Option[TimeStampNode], Unit])(node: Node): Boolean = {
     val foundNode = findNode(node)
 
     if (fn.isDefinedAt(foundNode)) {
@@ -35,7 +34,7 @@ class KBucket(val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeStampN
 
   private def updateNodesRef(op: => TreeSet[TimeStampNode]) = nodes = op
 
-  private def findNode(node: AbstractNode) = nodes.find(_.node == node)
+  private def findNode(node: Node) = nodes.find(_.node == node)
 
   def getLowestOrder = nodes.min.node.asInstanceOf[T]
 

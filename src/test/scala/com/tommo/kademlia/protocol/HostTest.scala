@@ -3,7 +3,7 @@ package com.tommo.kademlia.protocol
 import com.tommo.kademlia.BaseUnitTest
 
 class HostTest extends BaseUnitTest {
-  "A host" can "be constructed from a string" in {
+  "Host" can "be constructed from a string" in {
     val host = Host("hostName:8080")
 
     import host._

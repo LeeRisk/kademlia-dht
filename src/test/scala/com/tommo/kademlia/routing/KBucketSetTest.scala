@@ -10,29 +10,29 @@ import com.tommo.kademlia.protocol._
 class KBucketSetTest extends BaseUnitTest {
 
   trait Fixture {
-    implicit val selfId = Id("0000")
+    implicit val selfId = mockZeroId(4)
 
-    def alwaysTrue(node: AbstractNode) = true
+    def alwaysTrue(node: Node) = true
 
     trait SmallKBucketProvider extends KBucketProvider {
     	def capacity = 2
     }
 
     val bucketSet = new KBucketSet(selfId) with SmallKBucketProvider {
-      type T = Node
+      type T = RemoteNode
     }
 
-    def addNode(nodes: List[Node], replaceFn: AbstractNode => Boolean = alwaysTrue) {
+    def addNode(nodes: List[RemoteNode], replaceFn: Node => Boolean = alwaysTrue) {
       for (node <- nodes) {
         Thread.sleep(1) // resolution of SystemClock is 1ms
         bucketSet.add(node)(replaceFn)
       }
     }
 
-    def aNode(bitStr: String) = Node(Host("hostname:999"), Id(bitStr))
+    def aNode(bitStr: String) = RemoteNode(mockHost, Id(bitStr))
   }
 
-  "A KBucket length" should "match it's own id size" in new Fixture {
+  "KBucket" should "return the same addressSize as id self size" in new Fixture {
     assert(bucketSet.addressSize == 4)
   }
 

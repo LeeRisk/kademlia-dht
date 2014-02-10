@@ -2,8 +2,11 @@ package com.tommo.kademlia.protocol
 
 import com.tommo.kademlia.identity.Id
 
-abstract sealed class Response
+sealed abstract class Response {
+  def sender: Node
+  def echoId: Id
+}
 
-case class PingResponse(sender: AbstractNode, echoId: Id) extends Response
+case class PingResponse(sender: Node, echoId: Id) extends Response
 
 
