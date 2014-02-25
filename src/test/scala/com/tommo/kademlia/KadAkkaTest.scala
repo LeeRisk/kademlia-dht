@@ -4,12 +4,6 @@ import com.tommo.kademlia.identity.{Id, IdGenerator}
 import akka.actor.Actor
 class KadAkkaTest extends BaseTestKit("KadAkkaTest") {
   
-  implicit val mockConfig = new KadConfig {
-    def host = mockHost
-    def kBucketSize = 10
-    def addressSpace = 10
-  }
-  
   trait MockProvider extends KadActorProvider {
     override def newKadActor(self: Id)(implicit config: KadConfig): Actor = wrapTestActor
   }

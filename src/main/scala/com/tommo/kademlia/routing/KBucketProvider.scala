@@ -5,12 +5,9 @@ import com.tommo.kademlia.misc.time.SystemClock
 
 
 trait KBucketProvider {
+  def capacity: Int
   
   type T <: Node
   
-  def capacity: Int
-  
-  def newKBucketEntry = new KBucket(capacity)(LastSeenOrdering()) with SystemClock {
-    type T = KBucketProvider#T
-  }
+  def newKBucketEntry = new KBucket[T](capacity)(LastSeenOrdering()) with SystemClock
 }

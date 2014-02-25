@@ -16,7 +16,7 @@ class KBucketTest extends BaseUnitTest  {
     
     import java.util.UUID.randomUUID
 
-    def withCapacity(capacity: Int) = new KBucket(capacity)(LastSeenOrdering()) with IncrementingClock {
+    def withCapacity(capacity: Int) = new KBucket[RemoteNode](capacity)(LastSeenOrdering()) with IncrementingClock {
       type T = RemoteNode
     }
     
@@ -86,7 +86,7 @@ class KBucketTest extends BaseUnitTest  {
       def getTime() = { currentCount += 1; currentCount }
     }
     
-    val kbucket = new KBucket(2)(LastSeenOrdering()) with StubbedClock { type T = RemoteNode }
+    val kbucket = new KBucket[RemoteNode](2)(LastSeenOrdering()) with StubbedClock { type T = RemoteNode }
     
     kbucket.add(aRandomNode)
     

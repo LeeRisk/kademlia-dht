@@ -5,10 +5,8 @@ import scala.collection.immutable.TreeSet
 import com.tommo.kademlia.misc.time.Clock
 import com.tommo.kademlia.protocol.Node
 
-class KBucket(val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeStampNode]) {
+class KBucket[T <: Node](val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeStampNode]) {
   self: Clock =>
-
-  type T <: Node
 
   var nodes = TreeSet[TimeStampNode]()
 
