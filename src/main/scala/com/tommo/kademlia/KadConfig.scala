@@ -5,12 +5,14 @@ import com.tommo.kademlia.protocol.Host
 import TypeSafeKadConfig._
 import scala.concurrent.duration._
 
+import akka.util.Timeout
+
 trait KadConfig {
 	def host: Host
 	def kBucketSize: Int
 	def addressSpace: Int
 	def concurrency: Int
-	def timeout: Duration
+	def timeout: FiniteDuration
 }
 
 class TypeSafeKadConfig(config: Config) extends KadConfig {
@@ -26,7 +28,7 @@ class TypeSafeKadConfig(config: Config) extends KadConfig {
   
   val concurrency = config.getInt(s"${namespace}.concurrency")
   
-  val timeout = Duration(config.getInt(s"${namespace}.timeout-ms"), MILLISECONDS)
+  val timeout = FiniteDuration(config.getInt(s"${namespace}.timeout-ms"), MILLISECONDS)
 }
 
 object TypeSafeKadConfig {
