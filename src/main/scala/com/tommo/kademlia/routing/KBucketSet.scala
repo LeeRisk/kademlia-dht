@@ -27,7 +27,7 @@ class KBucketSet[T <: Node](id: Id) {
   }
 
   def getClosestInOrder(k: Int = kBucketArr(0).capacity, node: T) = {
-    val indices = id.scanLeftPrefix(node.id)
+    val indices = id.findAllNonMatchingFromRight(node.id)
     val diff = Stream.range(0, addressSize, 1).diff(indices)
 
     val traverseOrder = indices.toStream ++ diff

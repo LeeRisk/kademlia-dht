@@ -11,8 +11,7 @@ import akka.pattern.{ ask, pipe }
 class LookupActor(kBucketActor: ActorRef)(implicit val config: KadConfig) extends FSM[State, Data] {
   import context._
 
-  implicit val timeout: akka.util.Timeout = config.timeout
-
+  implicit val timeout: akka.util.Timeout = config.timeout // todo 
   
   startWith(Initial, Empty)
 
@@ -33,7 +32,7 @@ class LookupActor(kBucketActor: ActorRef)(implicit val config: KadConfig) extend
         case QueryNodeData(id, nodes, _) => {
           val k = config.kBucketSize
           val toQuery = nodes.take(config.concurrency)
-          toQuery.foreach(node => (node.actor ? GetKClosest(id, k)).mapTo[KClosest] map (x => x) pipeTo self) // TODO map should return the actual response which includes other objects i.e. piggybacking on ping requests
+          toQuery.foreach(node => (node.actor ? GetKClosest(id, k)).mapTo[KClosest] pipeTo self) 
         }
       }
   }
@@ -45,7 +44,7 @@ class LookupActor(kBucketActor: ActorRef)(implicit val config: KadConfig) extend
 }
 
 object LookupActor {
-  case class GetKClosest(id: Id, k: Int) // TODO belongs in kBucketActor
+  case class GetKClosest(id: Id, k: Int) 
   case class KClosest(nodes: List[ActorNode])
 
   sealed trait State

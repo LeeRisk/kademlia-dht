@@ -10,5 +10,6 @@ class HashIdGeneratorTest extends BaseUnitTest {
     val (dataInput, expectedId) = ("this is a test".getBytes(), Id(new sun.misc.BASE64Decoder().decodeBuffer("+ia+Gd5r/5P3C8IwhDTkpEC7rQI=")))
     
     assert(hasher.generateId(dataInput) == expectedId)
+    
   }
 }

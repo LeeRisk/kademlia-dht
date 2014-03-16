@@ -15,9 +15,9 @@ class IdTest extends BaseUnitTest {
     assert(id.distance(anotherId) == expectedDistance)
   }
 
-  it should "construct a string of bits using little endian" in {
+  it should "construct a string of bits" in {
     val id = Id("10")
-    id.bits should contain inOrderOnly (true, false)
+    id.decimalVal should equal(2)
   }
 
   it should "return the longest common prefix size" in {
@@ -25,6 +25,14 @@ class IdTest extends BaseUnitTest {
     val anotherId = Id("10011011")
 
     assert(id.longestPrefixLength(anotherId) == 4)
+
+    val decId = idFactory(4)
+    val anotherDecId = idFactory(8)
+
+    println(decId)
+    println(anotherDecId)
+
+    assert(decId.longestPrefixLength(anotherDecId) == 4)
   }
 
   it should "fail if address space size do not match for distance calculation" in {
@@ -42,14 +50,40 @@ class IdTest extends BaseUnitTest {
     }
   }
 
-  it should "find all common prefixes starting from left" in {
-    val id        = Id("0000")
-    val anotherId = Id("0101")
-    
-    id.scanLeftPrefix(anotherId) should contain inOrderOnly (2,0)
-    
-    
-    id.scanLeftPrefix(id) shouldBe empty
+  it should "find all mistmatched indices" in {
+    val id = Id("00100")
+    val anotherId = Id("11111")
+
+    id.findAllNonMatchingFromRight(anotherId) should contain inOrderOnly (4, 3, 1, 0)
+
+    id.findAllNonMatchingFromRight(id) shouldBe empty
   }
 
+  it should "correct toString" in {
+    val id = idFactory(4)
+
+    id.toString shouldBe "00000100"
+
+  }
+
+  it should "return the closer node when compared against two in Ordering" in {
+    val id = Id("1010")
+    val order = new id.Order
+
+    var cIdOne = Id("0100")
+    var cIdTwo = Id("0010")
+
+    order.compare(cIdOne, cIdTwo) should be < 0
+
+    cIdOne = Id("1110")
+    cIdTwo = Id("1111")
+
+    order.compare(cIdOne, cIdTwo) should be > 0
+
+    cIdOne = Id("1111")
+    cIdTwo = Id("1111")
+
+    order.compare(cIdOne, cIdTwo) shouldBe 0
+
+  }
 }

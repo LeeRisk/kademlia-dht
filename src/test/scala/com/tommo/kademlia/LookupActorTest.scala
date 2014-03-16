@@ -7,6 +7,7 @@ import akka.actor.Actor
 import LookupActor._
 import com.tommo.kademlia.protocol.ActorNode
 import com.tommo.kademlia.identity.Id
+import scala.collection.immutable.TreeMap
 
 class LookupActorTest extends BaseTestKit("LookupSpec") {
   def actor(kBucketActor: ActorRef = testActor) = {
@@ -14,9 +15,14 @@ class LookupActorTest extends BaseTestKit("LookupSpec") {
     (ref.underlyingActor, ref)
   }
 
-  val id = mockZeroId(10)
-
-  val mockNodes = List(ActorNode(testActor, Id("0000")), ActorNode(testActor, Id("0001")), ActorNode(testActor, Id("0010")))
+  val id = mockZeroId(4)
+  
+  def getKeyPair(actorNode: ActorNode) = (actorNode.id, actorNode)
+  
+  val mockNodes = null
+//  val mockNodes = TreeMap(getKeyPair(ActorNode(testActor, Id("0000"))))
+//      (Id("0000"), ActorNode(testActor, Id("0000"))), 
+//      (Id("0001"), ActorNode(testActor, Id("0001")), ActorNode(testActor, Id("0010")))
 
   "A LookupActor" should "start in Initial state with Empty data" in {
     val (lookup, ref) = actor()
