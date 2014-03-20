@@ -8,14 +8,15 @@ import java.util.Properties
 
 class KadConfigTest extends BaseUnitTest {
   "KadConfig" should "load config file from tommo-kad namespace" in {
-	  val conf = TypeSafeKadConfig(); // loads config from /src/main/resources/reference.conf
+	  val conf = TypeSafeKadConfig(); // loads config from /src/main/resources/application.conf
 	  assert(conf.host == Host("127.0.0.1:2552"))
 	  assert(conf.kBucketSize == 10)
 	  assert(conf.addressSpace == 160)
 	  
 	  assert(conf.concurrency == 2)
 	  
-	  assert(conf.timeout == (1 second))
+	  assert(conf.responseTimeout == (3 second))
+	  assert(conf.roundTimeOut == (1 second))
 	  
   }
   

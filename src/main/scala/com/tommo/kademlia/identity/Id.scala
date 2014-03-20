@@ -35,6 +35,7 @@ case class Id(private[identity] val decimalVal: BigInt, val size: Int) {
   }
 
   class Order extends Ordering[Id] {
+    
     override def compare(x: Id, y: Id) = {
       val (xPref, yPref) = (longestPrefixLength(x), longestPrefixLength(y))
 
@@ -62,7 +63,7 @@ case class Id(private[identity] val decimalVal: BigInt, val size: Int) {
   private def foldLeft[T](i: T, start: Int = size)(op: (Int, T) => T) = {
     def _foldLeft(bit: Int = start, acc: T = i): T = bit match {
       case 0 => acc
-      case _ => { println(bit); _foldLeft(bit - 1, op(bit, acc)) }
+      case _ => _foldLeft(bit - 1, op(bit, acc)) 
     }
     _foldLeft()
   }
