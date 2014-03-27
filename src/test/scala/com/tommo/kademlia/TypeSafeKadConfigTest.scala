@@ -15,7 +15,6 @@ class KadConfigTest extends BaseUnitTest {
 	  
 	  assert(conf.concurrency == 2)
 	  
-	  assert(conf.responseTimeout == (3 second))
 	  assert(conf.roundTimeOut == (1 second))
 	  
   }

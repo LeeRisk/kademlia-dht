@@ -12,7 +12,6 @@ trait KadConfig {
 	def kBucketSize: Int
 	def addressSpace: Int
 	def concurrency: Int
-	def responseTimeout: FiniteDuration
 	def roundTimeOut: FiniteDuration
 }
 
@@ -28,8 +27,6 @@ class TypeSafeKadConfig(config: Config) extends KadConfig {
   val addressSpace = config.getInt(s"${namespace}.address-space")
   
   val concurrency = config.getInt(s"${namespace}.concurrency")
-  
-  val responseTimeout = FiniteDuration(config.getInt(s"${namespace}.response-timeout-ms"), MILLISECONDS)
   
   val roundTimeOut = FiniteDuration(config.getInt(s"${namespace}.round-timeout-ms"), MILLISECONDS)
 }

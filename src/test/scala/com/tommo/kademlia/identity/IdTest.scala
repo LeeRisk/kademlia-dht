@@ -29,9 +29,6 @@ class IdTest extends BaseUnitTest {
     val decId = idFactory(4)
     val anotherDecId = idFactory(8)
 
-    println(decId)
-    println(anotherDecId)
-
     assert(decId.longestPrefixLength(anotherDecId) == 4)
   }
 

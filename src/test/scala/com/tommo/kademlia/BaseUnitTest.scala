@@ -10,12 +10,11 @@ import akka.actor._
 
 trait BaseUnitTest extends FlatSpecLike with Matchers with OptionValues with Inside with Inspectors {
   class TestKadConfig extends KadConfig {
-    val host = mockHost
+    val host = mockHost // don't change settings as it effects other tests; instead extend
     val kBucketSize = 10
     val addressSpace = 10
     val concurrency = 2
     val roundTimeOut = 1 milliseconds
-    val responseTimeout = 600 milliseconds
   }
 
   implicit val mockConfig = new TestKadConfig
