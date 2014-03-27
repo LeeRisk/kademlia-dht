@@ -56,7 +56,7 @@ class IdTest extends BaseUnitTest {
     id.findAllNonMatchingFromRight(id) shouldBe empty
   }
 
-  it should "correct toString" in {
+  it should "toString should represent a binary number" in {
     val id = idFactory(4)
 
     id.toString shouldBe "00000100"
