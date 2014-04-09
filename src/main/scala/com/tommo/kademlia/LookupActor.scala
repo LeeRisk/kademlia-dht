@@ -21,85 +21,98 @@ class LookupActor(kBucketActor: ActorRef)(implicit val config: KadConfig) extend
   when(Initial) {
     case Event(id: Id, _) =>
       kBucketActor ! GetKClosest(id: Id, kBucketSize)
-      goto(QueryKBucket) using QueryKBucketData(id)
+      goto(QueryKBucket) using QueryKBucketData(KClosestRequest(id, sender))
   }
 
   when(QueryKBucket) {
-    case Event(KClosest(nodes), data: QueryKBucketData) =>
+    case Event(KClosest(nodes), QueryKBucketData(req)) =>
       val newRound = 1
-      val seen = TreeMap(nodes.map(actorNodeToKeyPair(_, round = newRound)): _*)((new data.id.Order).reverse)
-      goto(QueryNode) using QueryNodeData(data.id, seen.take(config.concurrency), seen, currRound = newRound)
-  }
-
-  onTransition {
-    case QueryKBucket -> QueryNode =>
-      (nextStateData: @unchecked) match {
-        case QueryNodeData(id, toQuery, _, _, _) =>
-          toQuery.foreach {
-            case (_, NodeQuery(ref, _, _)) => (ref ? GetKClosest(id, kBucketSize)).mapTo[KClosest] pipeTo self
-          }
-      }
+      val seen = TreeMap(nodes.map(actorNodeToKeyPair(_, round = newRound)): _*)((new req.id.Order).reverse)
+      goto(QueryNode) using QueryNodeData(req, seen.take(config.concurrency), seen, currRound = newRound)
   }
 
   when(QueryNode)(transform {
-    case Event(KClosestRemote(sender, nodes), data @ QueryNodeData(id, query, seen, count, currRound)) =>
+    case Event(KClosestRemote(sender, nodes), data @ QueryNodeData(id, query, seen, count, currRound, _)) =>
       val updateNodeStatus = query + actorNodeToKeyPair(sender, true, currRound)
-      val nodesNotSeen = nodes.filter(x => !seen.exists(_._1 == x.id)).map(actorNodeToKeyPair(_, round = currRound + 1)) // only copy nodes with id's not already in the seen map
+      val nodesNotSeen = nodes.filter(x => !seen.exists(_._1 == x.id)).map(actorNodeToKeyPair(_, round = currRound + 1))
       val updatedSeen = seen ++ nodesNotSeen
       stay using data.copy(querying = updateNodeStatus, seen = updatedSeen)
-    case Event(Failure(_: AskTimeoutException), data @ QueryNodeData(_, _, _, count, _)) => stay using data 
+    case Event(Failure(_: AskTimeoutException), data) => stay using data
   } using {
-    case s if numResponseEqQuerying(s.stateData) => s.copy(stateName = GatherNode)
-    case s => stay using incrementResponseCount(s.stateData)
+    case s =>  
+      (s.stateData: @unchecked) match {
+        case data: QueryNodeData  =>
+          incrementResponseCount(data) match {
+            case incS: QueryNodeData if numResponseEqQuerying(incS) => s.copy(stateName = GatherNode, stateData = incS)
+            case s => stay using s
+          }
+      }
   })
 
-  private def incrementResponseCount(data: Data) = data match {
-    case data @ QueryNodeData(_, _, _, _, response) => data.copy(responseCount = response + 1)
-    case s => s
+  when(GatherNode) {
+    case Event(Start, queryData: QueryNodeData) => {
+      import queryData._
+      val closest = seen.head
+      val nextRound = nextQueryRound(queryData)
+      closest match {
+        case (_, NodeQuery(_, _, round)) if round > currRound && !lastRound => goto(QueryNode) using nextRound.copy(querying = nextRound.seen.take(concurrency).filter(notYetQueried) ++ nextRound.querying)
+        case _ if lastRound => goto(Finalize) using nextRound
+        case _ => goto(QueryNode) using nextRound.copy(querying = nextRound.seen.take(kBucketSize).filter(notYetQueried), lastRound = true)
+      }
+    }
   }
 
-  private def numResponseEqQuerying(data: Data) = data match {
-    case QueryNodeData(_, querying, _, responseCount, _) if querying.size == responseCount => true
-    case _ => false
+  when(Finalize) {
+    case Event(Start, QueryNodeData(req, _, seen, _, _, _)) => 
+      req.sender ! seen.toList.map(_._2)
+      goto(Initial) using Empty
   }
 
   onTransition {
-    case QueryNode -> GatherNode => self ! InitiateGather
+    case QueryNode -> GatherNode => self ! Start
+    case _ -> QueryNode => (nextStateData: @unchecked) match { case s: QueryNodeData => sendRequestInQuerying(s) }
+    case GatherNode -> Finalize => self ! Start
   }
 
-  when(GatherNode) {
-    case Event(InitiateGather, data @ QueryNodeData(_, query, seen, _, currRound)) => {
-      val updatedSeen = seen ++ query
-      val closest = seen.head
+  private def nextQueryRound(queryData: QueryNodeData) = {
+    import queryData._
+    queryData.copy(querying = querying.filter(notYetQueried), seen = seen ++ querying, responseCount = 0, currRound = currRound + 1)
+  }
 
-      closest match {
-        case (id, NodeQuery(_, _, round)) if round > currRound =>
-          val kClosestNotYetQueried = seen.take(kBucketSize).filter(notYetQueried)
-          val failed = query.filter(notYetQueried)
-          goto(QueryNode) using data.copy(querying = kClosestNotYetQueried ++ failed, seen = updatedSeen, responseCount = 0, currRound = currRound + 1)
-        case _ => stay using data.copy(seen = updatedSeen)
-      }
+  private def incrementResponseCount(queryData: QueryNodeData) = {
+    import queryData._
+    queryData.copy(responseCount = responseCount + 1)
+  }
 
-    }
+  private def numResponseEqQuerying(data: Data) = data match {
+    case QueryNodeData(_, querying, _, responseCount, _, _) if querying.size == responseCount => true
+    case _ => false
+  }
+
+  private def sendRequestInQuerying(queryData: QueryNodeData) { // send requests to nodes in querying that have not been queried yet
+    import queryData._
+    querying.foreach { case (_, NodeQuery(ref, queried, _)) => (ref ? GetKClosest(req.id, kBucketSize)).mapTo[KClosest] pipeTo self }
   }
 }
 
 object LookupActor {
-  private[kademlia] def actorNodeToKeyPair(node: ActorNode, queried: Boolean = false, round: Int = 1) = (node.id, NodeQuery(node.actor, queried, round))
-  private[kademlia] object InitiateGather
-  
-  private val notYetQueried: ((Id, NodeQuery)) => Boolean  = Function.tupled((id, node) => node.queried == false)
+  private[kademlia] def actorNodeToKeyPair(node: ActorNode, queried: Boolean = false, round: Int = 1) = (node.id, NodeQuery(node.ref, queried, round))
+  private[kademlia] case object Start
+  private[kademlia] case class KClosestRequest(id: Id, sender: ActorRef)
+
+  private val notYetQueried: ((Id, NodeQuery)) => Boolean = Function.tupled((id, node) => node.queried == false)
 
   sealed trait State
   case object Initial extends State
   case object QueryKBucket extends State
   case object QueryNode extends State
   case object GatherNode extends State
+  case object Finalize extends State
 
   sealed trait Data
   case object Empty extends Data
-  case class QueryKBucketData(id: Id) extends Data
-  case class QueryNodeData(id: Id, querying: Map[Id, NodeQuery] = Map(), seen: SortedMap[Id, NodeQuery], responseCount: Int = 0, currRound: Int = 1) extends Data
+  case class QueryKBucketData(req: KClosestRequest) extends Data
+  case class QueryNodeData(req: KClosestRequest, querying: Map[Id, NodeQuery] = Map(), seen: SortedMap[Id, NodeQuery], responseCount: Int = 0, currRound: Int = 1, lastRound: Boolean = false) extends Data
   case class NodeQuery(ref: ActorRef, queried: Boolean = false, round: Int)
 
   case class KClosest(nodes: List[ActorNode]) // TODO belongs in diff class

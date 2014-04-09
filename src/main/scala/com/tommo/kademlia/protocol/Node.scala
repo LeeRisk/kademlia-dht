@@ -9,5 +9,5 @@ sealed abstract class Node {
 
 case class RemoteNode(host: Host, id:Id) extends Node
 
-case class ActorNode(actor: ActorRef, id:Id) extends Node
+case class ActorNode(ref: ActorRef, id:Id) extends Node
 

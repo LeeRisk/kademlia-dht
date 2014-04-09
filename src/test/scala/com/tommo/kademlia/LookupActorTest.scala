@@ -1,165 +1,177 @@
 package com.tommo.kademlia
 
-import akka.testkit.TestFSMRef
-import akka.actor.{ ActorRef, Actor }
-
 import LookupActor._
-import com.tommo.kademlia.protocol.ActorNode
-import com.tommo.kademlia.identity.Id
+
+import akka.testkit.{TestFSMRef, TestProbe}
+import akka.actor.{ ActorRef, Actor }
+import akka.actor.FSM._
+
 import scala.collection.immutable.TreeMap
 import scala.concurrent.duration._
 
+import com.tommo.kademlia.protocol.ActorNode
+import com.tommo.kademlia.identity.Id
+
 class LookupActorTest extends BaseTestKit("LookupSpec") {
-
-  trait ActorFsmFixture {
+  trait Fixture {
     val kBucketActor = testActor
+
     val config = mockConfig
+    
     val ref = TestFSMRef(new LookupActor(kBucketActor)(config))
-    val underlying = ref.underlyingActor
+    val underlyingFsm = ref.underlyingActor
+    val toFindId = mockZeroId(4)
+    val kRequest = KClosestRequest(toFindId, testActor)
+    implicit val order = (new kRequest.id.Order).reverse
+
+    def transform(pair: (Id, NodeQuery), tFn: NodeQuery => NodeQuery) = (pair._1, tFn(pair._2))
+
+    val nodeQueryDefaults = QueryNodeData(req = kRequest, seen = TreeMap())
+    val round = nodeQueryDefaults.currRound
+    val nextRound = round + 1
+
+    def queryNodeDataDefault(toQuery: Int = config.concurrency) = QueryNodeData(kRequest, mockNodeMap.takeRight(toQuery), mockNodeMap)
+
+    lazy val mockNodeMap = TreeMap(mockActorNodePair("1000"), mockActorNodePair("1001"), mockActorNodePair("1011"), mockActorNodePair("1101"))
+
+    def mockActorNodePair(id: String, round: Int = round, queried: Boolean = false) = actorNodeToKeyPair(mockActorNode(id), queried, round)
+    def mockActorNode(id: String) = ActorNode(testActor, Id(id))
   }
 
-  val id = mockZeroId(4)
-  implicit val order = new id.Order
-
-  def actorNode(id: String) = ActorNode(testActor, Id(id))
-  def actorNodePair(id: String, queried: Boolean = false, round: Int = 1) = actorNodeToKeyPair(actorNode(id), queried, round);
-
-  val mockLocalNodes = List(actorNode("1000"), actorNode("1001"), actorNode("1011"), actorNode("1101")) // must be ordered with mockZeroId
-
-  def toQueryNode(mockNodes: List[ActorNode])(qFn: Id => Boolean) =  mockNodes.map(x => actorNodeToKeyPair(x, queried = qFn(x.id)))
-  
-  def mockQueryNodeData(mockNodes: List[ActorNode], numQuery: Int = mockConfig.concurrency)(qFn: Id => Boolean) = {
-    val seen = TreeMap(mockLocalNodes.map(x => actorNodeToKeyPair(x)): _*)
-    val query = seen.takeRight(numQuery).map(Function.tupled((id, nodeQuery) => (id, nodeQuery.copy(queried = qFn(id)))))
-    QueryNodeData(id, query, seen)
-  }
-
-  val initQueryState = mockQueryNodeData(mockLocalNodes)(x => false)
-
-  "A LookupActor" should "start in Initial state with Empty data" in new ActorFsmFixture {
+  "A LookupActor" should "start in Initial state with Empty data" in new Fixture {
     ref.stateName should equal(LookupActor.Initial)
     ref.stateData should equal(LookupActor.Empty)
   }
 
-  it should "send to the kbucketActor the id to get the k-closest locally known nodes" in new ActorFsmFixture {
-    ref ! id
-    expectMsg(GetKClosest(id, mockConfig.kBucketSize))
-  }
+  it should "send to the KBucket Actor the id to get the k-closest locally known nodes" in new Fixture {
+    ref ! toFindId
+    expectMsg(GetKClosest(toFindId, mockConfig.kBucketSize))
 
-  it should "go to QueryKBucketSet state when find k-closest request from id is received" in new ActorFsmFixture {
-    ref ! id
     ref.stateName should equal(QueryKBucket)
-    ref.stateData should equal(QueryKBucketData(id))
+    ref.stateData should equal(QueryKBucketData(kRequest))
+
   }
 
-  it should "go to QueryNode state when the k-closest node is received from the KBucket" in new ActorFsmFixture {
-    ref.setState(QueryKBucket, QueryKBucketData(id))
-
-    ref ! KClosest(mockLocalNodes)
+  it should "go to QueryNode state when the k-closest locally known nodes is received from the KBucket Actor" in new Fixture {
+    ref.setState(QueryKBucket, QueryKBucketData(kRequest))
+    
+    ref ! KClosest(mockActorNode("1010") :: Nil)
 
     ref.stateName should equal(QueryNode)
   }
 
-  it should "query α concurrently for each round" in new ActorFsmFixture {
-    ref.setState(QueryKBucket, QueryKBucketData(id))
-    ref.setState(QueryNode, initQueryState)
+  it should "query α concurrently for each round" in new Fixture {
+    ref.setState(QueryKBucket, QueryKBucketData(kRequest))
+    ref.setState(QueryNode, queryNodeDataDefault())
 
-    expectMsgAllOf(GetKClosest(id, mockConfig.kBucketSize), GetKClosest(id, mockConfig.kBucketSize))
+    expectMsgAllOf(GetKClosest(toFindId, config.kBucketSize), GetKClosest(toFindId, config.kBucketSize))
   }
 
-  it should "update the QueryState of the node that returned kClosest that was queried in the current round and add the result to seen" in new ActorFsmFixture {
-    val queryNodeState = initQueryState
+  it should "add newly discovered nodes that is returned from a queried node and update the node's status to queried" in new Fixture {
+    val data = queryNodeDataDefault()
 
-    ref.setState(QueryNode, queryNodeState)
+    ref.setState(QueryNode, data)
 
-    val (mockId, queryState) = queryNodeState.querying.head
+    val (queryId, queryState) = data.querying.head
 
-    val mockKResponse = KClosestRemote(ActorNode(queryState.ref, mockId), List(actorNode("0001")))
-    ref ! mockKResponse
-
-    val expectedQuerying = queryNodeState.querying + (mockId -> queryState.copy(queried = true))
-    val expectedSeen = queryNodeState.seen + actorNodeToKeyPair(actorNode("0001"), round = 2)
+    val anId = "0001"
+    ref ! KClosestRemote(ActorNode(queryState.ref, queryId), List(mockActorNode(anId)))
 
     inside(ref.stateData) {
-      case QueryNodeData(_, querying, seen, _, _) =>
-        querying shouldBe expectedQuerying
-        seen shouldBe expectedSeen
+      case QueryNodeData(_, querying, seen, _, _, _) =>
+        querying shouldBe data.querying + (queryId -> queryState.copy(queried = true))
+        seen shouldBe data.seen + mockActorNodePair(anId, round = 2)
     }
   }
 
-  it should "go to QueryNode -> GatherNode after the specified config timeout" in new ActorFsmFixture {
-    import akka.actor.FSM._
+  it should "go from QueryNode to GatherNode after the specified config timeout" in new Fixture {
+    val data = queryNodeDataDefault()
 
-    val queryNodeState = initQueryState
-
-    underlying onTransition {
+    underlyingFsm onTransition {
       case QueryNode -> GatherNode =>
-        inside(ref.stateData) {
-          case QueryNodeData(_, _, _, _, responseCount) =>
-            responseCount shouldBe queryNodeState.querying.size - 1
+        inside(underlyingFsm.nextStateData) {
+          case QueryNodeData(_, _, _, responseCount, currRound, _) =>
+            if (currRound == round) responseCount shouldBe 2
         }
     }
 
-    ref.setState(QueryKBucket, QueryKBucketData(id))
-    ref.setState(QueryNode, queryNodeState)
+    ref.setState(QueryKBucket, QueryKBucketData(kRequest))
+    ref.setState(QueryNode, data)
 
-    awaitAssert(ref.stateName should equal(GatherNode), max = 600 millis, interval = 100 micro) // allow some time
-
+    awaitAssert(ref.stateName should equal(GatherNode), max = 600 millis, interval = 100 micro)
   }
 
-  it should "update all successfully queried nodes in seen" in new ActorFsmFixture {
-    val first = mockLocalNodes.take(1)
-    val mockStateData = mockQueryNodeData(mockLocalNodes)(x => first.exists(_.id == x))
-
-    ref.setState(GatherNode, mockStateData)
-    ref ! InitiateGather
-
-    val expectedSeen = mockStateData.seen ++ mockStateData.querying
-
-    inside(ref.stateData) { case QueryNodeData(_, _, seen, _, _) => seen shouldBe expectedSeen }
-  }
-
-  it should "continue querying up to α unqueried nodes if there is a newly discovered node that is closer than the previous" in new ActorFsmFixture {
-    val (c1Queried, c2PrevRound, c3) = (actorNodePair("0001", true), actorNodePair("0010"), actorNodePair("0011", round = 3))
-
-    val data = QueryNodeData(id, seen = TreeMap(c1Queried, c2PrevRound, c3), responseCount = 300, currRound = 2)
+  it should "update all successfully queried nodes that are in the seen map" in new Fixture {
+    val defaultData = queryNodeDataDefault()
+    val closestQueryingUpdated = transform(defaultData.querying.head, _.copy(queried = true))
+    val data = defaultData.copy(querying = defaultData.querying + closestQueryingUpdated)
 
     ref.setState(GatherNode, data)
-    ref ! InitiateGather
+    ref ! Start
 
-    ref.stateName shouldBe QueryNode
+    inside(ref.stateData) { case QueryNodeData(_, _, seen, _, _, _) => seen shouldBe data.seen + closestQueryingUpdated }
+  }
+
+  it should "continue querying up to α unqueried nodes if there is a newly discovered node that is closer than the previous" in new Fixture {
+    val (c1Queried, c2EvenCloser) = (mockActorNodePair("0010", queried = true), mockActorNodePair("0001", round = nextRound))
+
+    val data = QueryNodeData(kRequest, seen = TreeMap(c1Queried, c2EvenCloser), responseCount = 0, currRound = round)
+
+    ref.setState(GatherNode, data)
+    ref ! Start
+
+    ref.stateName should equal(QueryNode)
 
     inside(ref.stateData) {
-      case QueryNodeData(_, querying, _, responseCount, nextRound) =>
-        querying shouldBe Map(c3, c2PrevRound)
+      case QueryNodeData(_, querying, _, responseCount, nextRound, _) =>
+        querying shouldBe Map(c2EvenCloser)
         responseCount shouldBe 0
-        nextRound shouldBe 3
+        nextRound shouldBe this.nextRound
     }
   }
 
-  it should "query nodes that failed to respond in previous round in addition to the newly discovered ones" in new ActorFsmFixture {
-    val (round, nextRound) = (1, 2)
-    val (c1, c2, failedNode, successNode) = (actorNodePair("0001", round = nextRound), actorNodePair("0010", round = nextRound), actorNodePair("1000", round = round), actorNodePair("0100", queried = true, round = round))
+  it should "query nodes that failed to respond in previous round in addition to the newly discovered ones" in new Fixture {
+    val (c1, c2, failedNode, successNode) = (mockActorNodePair("0001", round = nextRound), mockActorNodePair("0010", round = nextRound),
+      mockActorNodePair("1000"), mockActorNodePair("0100", queried = true))
 
-    val data = QueryNodeData(id, querying = Map(successNode, failedNode), seen = TreeMap(c1, c2), responseCount = 300, currRound = round)
+    val data = QueryNodeData(kRequest, querying = Map(successNode, failedNode), seen = TreeMap(c1, c2), responseCount = config.concurrency, currRound = round)
 
     ref.setState(GatherNode, data)
-    ref ! InitiateGather
+    ref ! Start
 
     val expectedQuerying = Map(failedNode, c1, c2)
 
+    inside(ref.stateData) { case QueryNodeData(_, querying, _, _, _, _) => querying shouldBe expectedQuerying }
+  }
+
+  it should "query all unqueried k-closest node if no new closer node has been discovered" in new Fixture {
+    val defaultData = queryNodeDataDefault(0)
+
+    val toQuery = defaultData.seen.takeRight(config.kBucketSize - 1)
+
+    val data = defaultData.copy(seen = defaultData.seen + transform(defaultData.seen.head, _.copy(queried = true)))
+
+    ref.setState(GatherNode, data)
+    ref ! Start
+
+    ref.stateName should equal(QueryNode)
+
     inside(ref.stateData) {
-      case QueryNodeData(_, querying, _, _, _) =>
-        querying shouldBe expectedQuerying
+      case QueryNodeData(_, querying, _, _, _, lastRound) =>
+        lastRound shouldBe true
+        querying shouldBe toQuery
     }
   }
-  
-  it should "query all unqueried k-closest node if no new closer node has been discovered" in new ActorFsmFixture { 
-       val (round, nextRound) = (1, 2)
-       
-//       val (closestUnqueried, closestQueried) =
-         val k = mockQueryNodeData(mockLocalNodes)(_ == Id("1000"))
+
+  it should "send the k-closest back to sender as list" in new Fixture {
+    val data = queryNodeDataDefault()
+
+    val requestor = TestProbe()
+    
+    ref.setState(Finalize, data.copy(req = data.req.copy(sender = requestor.ref)))
+    ref ! Start
+
+    requestor.expectMsg(data.seen.take(config.kBucketSize).toList.map(_._2))
   }
-  
-  
+
 }
