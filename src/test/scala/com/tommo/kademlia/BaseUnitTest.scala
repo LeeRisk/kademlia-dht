@@ -15,6 +15,7 @@ trait BaseUnitTest extends FlatSpecLike with Matchers with OptionValues with Ins
     val addressSpace = 4
     val concurrency = 2
     val roundTimeOut = 1 milliseconds
+    val id = mockZeroId(kBucketSize)
   }
 
   implicit val mockConfig = new TestKadConfig

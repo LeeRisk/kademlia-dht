@@ -42,6 +42,5 @@ class KBucket[T <: Node](val capacity: Int)(implicit nodeEvictionOrder: Ordering
   def size = nodes.size
 
   def isFull = size >= capacity
-
 }
 

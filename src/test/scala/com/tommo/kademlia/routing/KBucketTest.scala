@@ -8,26 +8,17 @@ import com.tommo.kademlia.identity._
 
 class KBucketTest extends BaseUnitTest  {
 
-  trait Fixture {
-    trait IncrementingClock extends Clock {
-      var counter = 0
-      def getTime() = { counter += 1; counter }
-    }
-    
+  trait Fixture extends KBucketSuiteFixture {
     import java.util.UUID.randomUUID
-
-    def withCapacity(capacity: Int) = new KBucket[RemoteNode](capacity)(LastSeenOrdering()) with IncrementingClock {
-      type T = RemoteNode
-    }
     
-    def withRandomNodes(numNodes: Int) = for (i <- List.range(0, numNodes)) yield (RemoteNode(mockHost, Id(randomUUID.toString.getBytes())))
+    def withRandomNodes(numNodes: Int) = for (i <- List.range(0, numNodes)) yield (RemoteNode(mockHost, aRandomId))
     
     def aRandomNode = withRandomNodes(1).head
 
     def prefillKBucket(capacity: Int = 10, numNodes: Int = 9) = {
       if (capacity < numNodes) throw new IllegalArgumentException(s"Can't prefill kbucket with $numNodes of capacity $capacity")
 
-      val kbucket = withCapacity(capacity)
+      val kbucket = withCapacity[RemoteNode](capacity)
       val nodes = withRandomNodes(numNodes)
       nodes.foreach(kbucket.add(_))
       (kbucket, nodes)

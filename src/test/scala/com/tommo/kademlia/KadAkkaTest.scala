@@ -7,7 +7,6 @@ class KadAkkaTest extends BaseTestKit("KadAkkaTest") {
   trait MockProvider extends KadActorProvider {
     override def newKadActor(self: Id)(implicit config: KadConfig): Actor = wrapTestActor
   }
-  
 
   "KadAkka" should "invoke IdGenerator to get a self generated id" in {
     trait MockIdGen extends IdGenerator {

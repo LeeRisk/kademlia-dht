@@ -6,7 +6,7 @@ import com.tommo.kademlia.protocol.Node
 class KBucketSet[T <: Node](id: Id) {
   self: KBucketProvider =>
     
-  val kBucketArr = Array.fill(id.size)(newKBucketEntry)
+  val kBucketArr = Array.fill(id.size)(newKBucketEntry[T])
 
   def apply(index: Int) = kBucketArr(index).getNodes
 
@@ -26,8 +26,8 @@ class KBucketSet[T <: Node](id: Id) {
       kbucket.add(node)
   }
 
-  def getClosestInOrder(k: Int = kBucketArr(0).capacity, node: T) = {
-    val indices = id.findAllNonMatchingFromRight(node.id)
+  def getClosestInOrder(k: Int = kBucketArr(0).capacity, id: Id): List[T] = {
+    val indices = id.findAllNonMatchingFromRight(id)
     val diff = Stream.range(0, addressSize, 1).diff(indices)
 
     val traverseOrder = indices.toStream ++ diff

@@ -9,18 +9,12 @@ import com.tommo.kademlia.protocol._
 
 class KBucketSetTest extends BaseUnitTest {
 
-  trait Fixture {
+  trait Fixture extends KBucketSuiteFixture {
     implicit val selfId = mockZeroId(4)
 
     def alwaysTrue(node: Node) = true
 
-    trait SmallKBucketProvider extends KBucketProvider {
-    	def capacity = 2
-    }
-
-    val bucketSet = new KBucketSet(selfId) with SmallKBucketProvider {
-      type T = RemoteNode
-    }
+    val bucketSet = new KBucketSet[RemoteNode](selfId) with MockKBucketProvider 
 
     def addNode(nodes: List[RemoteNode], replaceFn: Node => Boolean = alwaysTrue) {
       for (node <- nodes) {
@@ -60,11 +54,9 @@ class KBucketSetTest extends BaseUnitTest {
   }
 
   it should "get the kth closest ids" in new Fixture {
-    val id = aNode("0101")
-
     val nodesOrderedClosest = List(aNode("0100"), aNode("0001"), aNode("0010"), aNode("1000"))
     addNode(nodesOrderedClosest)
 
-    bucketSet.getClosestInOrder(5, id) should contain theSameElementsInOrderAs nodesOrderedClosest
+    bucketSet.getClosestInOrder(5, Id("0101")) should contain theSameElementsInOrderAs nodesOrderedClosest
   }
 }
