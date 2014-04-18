@@ -10,7 +10,7 @@ import akka.testkit.{TestActorRef, TestProbe}
 
 class KBucketSetActorTest extends BaseTestKit("KBucketSpec") {
 
-  trait Fixture extends KBucketSuiteFixture {
+  trait Fixture extends BaseKBucketFixture {
     val mockRef = TestProbe().ref
     val mockKBucket: MockKBucketSet
     class MockKBucketSet extends KBucketSet[ActorNode](mockZeroId(4)) with MockKBucketProvider
@@ -32,12 +32,9 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") {
         mockResult
       }
     }
-    
-    
+        
     verifyRef ! GetKClosest(mockZeroId(4), expectedK)
     expectMsg(KClosest(mockZeroId(4), mockResult))
     getClosestInvoked shouldBe true
-    
   }
-
 }

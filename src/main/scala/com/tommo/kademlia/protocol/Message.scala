@@ -15,9 +15,10 @@ case class KClosestRequest(val sender: Id, searchId: Id) extends Request
 case class KClosestReply(val sender: Id, nodes: List[ActorNode]) extends Reply
 
 /* Piggyback on request/response to verify authenticity of sender/receiver */
-trait AuthChallenge { val toEcho: Int }
-sealed abstract class AuthReply { val echoId: Int } 
-case class AuthSenderRequest(req: Request, val toEcho: Int) extends AuthChallenge
-case class AuthRecieverReply(responseMsg: Reply, echoId: Int, toEcho: Int) extends AuthReply with AuthChallenge
-case class AutoSenderReply(sender: Id, echoId: Int) extends AuthReply
+sealed trait AuthChallenge extends Message { val toEcho: Int } 
+sealed abstract class AuthReply extends Message { val echoId: Int }  
+
+case class AuthSenderRequest(req: Request, val toEcho: Int) extends AuthChallenge { val sender = req.sender}
+case class AuthRecieverReply(reply: Reply, echoId: Int, toEcho: Int) extends AuthReply with AuthChallenge { val sender = reply.sender }
+case class AuthSenderReply(sender: Id, echoId: Int) extends AuthReply
 

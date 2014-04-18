@@ -9,7 +9,7 @@ import com.tommo.kademlia.protocol._
 
 class KBucketSetTest extends BaseUnitTest {
 
-  trait Fixture extends KBucketSuiteFixture {
+  trait Fixture extends BaseKBucketFixture {
     implicit val selfId = mockZeroId(4)
 
     def alwaysTrue(node: Node) = true

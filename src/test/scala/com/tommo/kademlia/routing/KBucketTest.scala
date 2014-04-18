@@ -8,7 +8,7 @@ import com.tommo.kademlia.identity._
 
 class KBucketTest extends BaseUnitTest  {
 
-  trait Fixture extends KBucketSuiteFixture {
+  trait Fixture extends BaseKBucketFixture {
     import java.util.UUID.randomUUID
     
     def withRandomNodes(numNodes: Int) = for (i <- List.range(0, numNodes)) yield (RemoteNode(mockHost, aRandomId))

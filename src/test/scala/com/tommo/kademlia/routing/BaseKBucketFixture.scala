@@ -4,7 +4,7 @@ import com.tommo.kademlia.misc.time.Clock
 import com.tommo.kademlia.protocol.Node
 import com.tommo.kademlia.identity.Id
 
-trait KBucketSuiteFixture {
+trait BaseKBucketFixture {
   import java.util.UUID.randomUUID
 
   trait IncrementingClock extends Clock {
@@ -20,5 +20,4 @@ trait KBucketSuiteFixture {
     val capacity = 2
     override def newKBucketEntry[T <: Node] = withCapacity[T](capacity)
   }
-
 }
