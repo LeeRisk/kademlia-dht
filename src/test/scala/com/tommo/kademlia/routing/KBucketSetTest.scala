@@ -16,10 +16,10 @@ class KBucketSetTest extends BaseUnitTest {
 
     val bucketSet = new KBucketSet[RemoteNode](selfId) with MockKBucketProvider 
 
-    def addNode(nodes: List[RemoteNode], replaceFn: Node => Boolean = alwaysTrue) {
+    def addNode(nodes: List[RemoteNode]) {
       for (node <- nodes) {
         Thread.sleep(1) // resolution of SystemClock is 1ms
-        bucketSet.add(node)(replaceFn)
+        bucketSet.add(node)
       }
     }
 
@@ -38,21 +38,7 @@ class KBucketSetTest extends BaseUnitTest {
     bucketSet(1) should contain theSameElementsAs List(middle)
     bucketSet(3) should contain theSameElementsAs List(farthest)
   }
-
-  it should "replace lowest node if replace fn returns true" in new Fixture {
-    val (first, second, third) = (aNode("1000"), aNode("1001"), aNode("1011"))
-    addNode(List(first, second, third))
-
-    bucketSet(3) should contain theSameElementsAs List(third, second)
-  }
-
-  it should "replace lowest node if replace fn returns false" in new Fixture {
-    val (first, second, third) = (aNode("1000"), aNode("1001"), aNode("1011"))
-    addNode(List(first, second, third), x => false)
-
-    bucketSet(3) should contain theSameElementsAs List(first, second)
-  }
-
+  
   it should "get the kth closest ids" in new Fixture {
     val nodesOrderedClosest = List(aNode("0100"), aNode("0001"), aNode("0010"), aNode("1000"))
     addNode(nodesOrderedClosest)

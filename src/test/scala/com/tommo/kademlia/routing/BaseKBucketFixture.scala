@@ -3,8 +3,9 @@ package com.tommo.kademlia.routing
 import com.tommo.kademlia.misc.time.Clock
 import com.tommo.kademlia.protocol.Node
 import com.tommo.kademlia.identity.Id
+import com.tommo.kademlia.BaseFixture
 
-trait BaseKBucketFixture {
+trait BaseKBucketFixture extends BaseFixture {
   import java.util.UUID.randomUUID
 
   trait IncrementingClock extends Clock {
@@ -16,8 +17,8 @@ trait BaseKBucketFixture {
 
   def aRandomId = Id(randomUUID.toString.getBytes())
 
-  trait MockKBucketProvider extends KBucketProvider {
-    val capacity = 2
-    override def newKBucketEntry[T <: Node] = withCapacity[T](capacity)
+  trait MockKBucketProvider extends KBucket.Provider {
+    def capacity = mockConfig.kBucketSize
+    override def newKBucketEntry[T <: Node] = withCapacity[T](capacity) 
   }
 }

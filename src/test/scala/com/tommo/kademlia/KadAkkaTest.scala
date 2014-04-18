@@ -8,7 +8,7 @@ class KadAkkaTest extends BaseTestKit("KadAkkaTest") {
     override def newKadActor(self: Id)(implicit config: KadConfig): Actor = wrapTestActor
   }
 
-  "KadAkka" should "invoke IdGenerator to get a self generated id" in {
+  "KadAkka" should "invoke IdGenerator to get a self generated id" in new BaseFixture {
     trait MockIdGen extends IdGenerator {
       override def generateId(addressSpace: Int) = {
         assert(addressSpace == mockConfig.addressSpace)
@@ -19,7 +19,7 @@ class KadAkkaTest extends BaseTestKit("KadAkkaTest") {
     val kadAkka = new KadAkka with MockIdGen with KadActorProvider
   }
   
-  it should "send the actor a join msg when constructed with an existing kad network" in {
+  it should "send the actor a join msg when constructed with an existing kad network" in new BaseFixture {
     val kadAkka = new ExistingKadNetwork(mockHost, system) with IdGenerator with MockProvider
     expectMsg("Joining")
   }
