@@ -6,7 +6,8 @@ import com.tommo.kademlia.protocol.ActorNode
 import com.tommo.kademlia.identity.Id
 
 import org.scalatest._
-
+import org.mockito.Matchers._
+import org.mockito.Mockito._
 
 abstract class BaseTestKit(name: String) extends TestKit(ActorSystem(name)) with ImplicitSender with BaseUnitTest with BeforeAndAfterAll {
   def mockActorNode(id: String) = ActorNode(testActor, Id(id))

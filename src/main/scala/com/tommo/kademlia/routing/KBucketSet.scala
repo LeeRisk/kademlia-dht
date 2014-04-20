@@ -28,21 +28,22 @@ class KBucketSet[T <: Node](id: Id) {
 
   def isFull(node: T) = getKBucketIndex(node).isFull
 
-  def remove(node: T) = getKBucketIndex(node).remove(node)
+  def remove(node: T) = getKBucketIndex(node).remove(node) 
+  
+  def contains(node: T) = !getKBucketIndex(node).findNode(node).isEmpty
 
   def getClosestInOrder(k: Int = kBucketArr(0).capacity, anId: Id): List[T] = {
     val indices = id.findAllNonMatchingFromRight(anId)
     val diff = Stream.range(0, addressSize, 1).diff(indices)
 
     val traverseOrder = indices.toStream ++ diff
-    println(indices)
-    println(indices ++ diff);
 
     def buildKClosest(count: Int = 0, acc: List[T] = List[T](), traverseOrder: Stream[Int] = traverseOrder): List[T] = {
       if (count < k && !traverseOrder.isEmpty) {
         val bucketIndex = traverseOrder.head
         val kbucket = kBucketArr(bucketIndex)
         val nodes = kbucket.getNodes.slice(0, k - count)
+        
         buildKClosest(count + nodes.size, acc ++ nodes, traverseOrder.tail)
       } else
         acc

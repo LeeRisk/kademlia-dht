@@ -1,8 +1,10 @@
 package com.tommo.kademlia
 
-import org.scalatest._
+import org.scalatest.FunSuiteLike
+import org.scalatest.Inside
+import org.scalatest.Inspectors
+import org.scalatest.Matchers
+import org.scalatest.OptionValues
+import org.scalatest.mock.MockitoSugar
 
-import com.tommo.kademlia.protocol.Host
-import com.tommo.kademlia.identity._
-
-trait BaseUnitTest extends FlatSpecLike with Matchers with OptionValues with Inside with Inspectors 
+trait BaseUnitTest extends Matchers with FunSuiteLike with OptionValues with Inside with MockitoSugar 

@@ -4,10 +4,10 @@ import com.tommo.kademlia.identity.Id
 
 import akka.actor.{ Actor, ActorRef, Props }
 
-class SenderActor(id: Id, kBucketActor: ActorRef) extends Actor {
+class RequestSenderActor(id: Id, kBucketActor: ActorRef) extends Actor {
   this: AuthActor.Provider =>
 
-  import SenderActor._
+  import RequestSenderActor._
 
   def receive = {
     case NodeRequest(node, req) => 
@@ -16,7 +16,6 @@ class SenderActor(id: Id, kBucketActor: ActorRef) extends Actor {
   }
 
 }
-object SenderActor {
+object RequestSenderActor {
   case class NodeRequest(node: ActorRef, request: Request)
-
 }

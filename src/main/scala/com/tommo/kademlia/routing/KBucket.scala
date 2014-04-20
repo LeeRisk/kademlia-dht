@@ -19,7 +19,7 @@ class KBucket[T <: Node](val capacity: Int)(implicit nodeEvictionOrder: Ordering
     })(node)
   }
 
-  def remove(node: T) = applyFnToFoundNode({ case Some(existingNode) => updateNodesRef(nodes - existingNode) })(node)
+  def remove(node: T) = applyFnToFoundNode({ case Some(existingNode) => updateNodesRef(nodes - existingNode) })(node) 
 
   private def applyFnToFoundNode(fn: PartialFunction[Option[TimeStampNode], Unit])(node: Node): Boolean = {
     val foundNode = findNode(node)
@@ -33,7 +33,7 @@ class KBucket[T <: Node](val capacity: Int)(implicit nodeEvictionOrder: Ordering
 
   private def updateNodesRef(op: => TreeSet[TimeStampNode]) = nodes = op
 
-  private def findNode(node: Node) = nodes.find(_.node == node)
+  def findNode(node: Node) = nodes.find(_.node == node) 
 
   def getLowestOrder = nodes.min.node.asInstanceOf[T]
 
@@ -41,7 +41,7 @@ class KBucket[T <: Node](val capacity: Int)(implicit nodeEvictionOrder: Ordering
   def getNodes(numNodes: Int): List[T] = nodes.take(numNodes).map(_.node.asInstanceOf[T]).toList
 
   def size = nodes.size
-
+  
   def isFull = size >= capacity
 }
 

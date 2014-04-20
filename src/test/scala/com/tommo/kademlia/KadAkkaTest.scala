@@ -1,26 +1,29 @@
 package com.tommo.kademlia
 
-import com.tommo.kademlia.identity.{Id, IdGenerator}
+import com.tommo.kademlia.identity.{ Id, IdGenerator }
 import akka.actor.Actor
-class KadAkkaTest extends BaseTestKit("KadAkkaTest") {
-  
-  trait MockProvider extends KadActorProvider {
-    override def newKadActor(self: Id)(implicit config: KadConfig): Actor = wrapTestActor
-  }
+import org.mockito.Matchers._
+import org.mockito.Mockito._
 
-  "KadAkka" should "invoke IdGenerator to get a self generated id" in new BaseFixture {
+class KadAkkaTest extends BaseTestKit("KadAkkaTest") with BaseFixture {
+  test("invoke IdGenerator to get a self generated id") {
     trait MockIdGen extends IdGenerator {
-      override def generateId(addressSpace: Int) = {
-        assert(addressSpace == mockConfig.addressSpace)
-        mockZeroId(addressSpace)
-      }
+      lazy val mockId = mock[MockIdGen]
+      override def generateId(addressSpace: Int) = mockId.generateId(addressSpace)
     }
 
-    val kadAkka = new KadAkka with MockIdGen with KadActorProvider
+    val kadAkka = new KadAkka with MockIdGen with KadActorProvider {
+      verify(mockId).generateId(mockConfig.addressSpace)
+    }
   }
-  
-  it should "send the actor a join msg when constructed with an existing kad network" in new BaseFixture {
-    val kadAkka = new ExistingKadNetwork(mockHost, system) with IdGenerator with MockProvider
+
+  test("send the actor a join msg when constructed with an existing kad network") {
+    trait MockProvider extends KadActorProvider {
+      override def newKadActor(self: Id)(implicit config: KadConfig) = { println("called"); wrapTestActor }
+    }
+
+    new ExistingKadNetwork(mockHost, system) with IdGenerator with MockProvider
+    
     expectMsg("Joining")
   }
 }

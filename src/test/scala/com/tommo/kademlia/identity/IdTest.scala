@@ -6,7 +6,7 @@ import org.scalatest._
 class IdTest extends BaseUnitTest {
   def idFactory = Id(8)_
 
-  "Id" should "be able to compute distance between a node with the same address size" in {
+  test("be able to compute distance between a node with the same address size") {
     val id = idFactory(8)
     val anotherId = idFactory(3)
 
@@ -15,12 +15,12 @@ class IdTest extends BaseUnitTest {
     assert(id.distance(anotherId) == expectedDistance)
   }
 
-  it should "construct a string of bits" in {
+  test("construct a id from binary string") {
     val id = Id("10")
     id.decimalVal should equal(2)
   }
 
-  it should "return the longest common prefix size" in {
+  test("return the longest common prefix size") {
     val id = Id("10010011")
     val anotherId = Id("10011011")
 
@@ -32,7 +32,7 @@ class IdTest extends BaseUnitTest {
     assert(decId.longestPrefixLength(anotherDecId) == 4)
   }
 
-  it should "fail if address space size do not match for distance calculation" in {
+  test("fail if address space size do not match for distance calculation") {
     val id = Id("10011")
     val anotherId = Id("111111")
 
@@ -41,13 +41,13 @@ class IdTest extends BaseUnitTest {
     }
   }
 
-  it should "fail if constructed bit string contains invalid characters" in {
+  test("fail if constructed bit string contains invalid characters") {
     intercept[RuntimeException] {
       Id("01InvalidSeq10")
     }
   }
 
-  it should "find all mistmatched indices" in {
+  test("find all mistmatched indices") {
     val id = Id("00100")
     val anotherId = Id("11111")
 
@@ -56,14 +56,13 @@ class IdTest extends BaseUnitTest {
     id.findAllNonMatchingFromRight(id) shouldBe empty
   }
 
-  it should "toString should represent a binary number" in {
+  test("toString should represent a binary number") {
     val id = idFactory(4)
-
+    
     id.toString shouldBe "00000100"
-
   }
 
-  it should "return the closer node when compared against two in Ordering" in {
+  test("return the closer node when compared against two in Ordering") {
     val id = Id("1010")
     val order = new id.Order
 

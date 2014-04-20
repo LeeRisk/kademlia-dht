@@ -22,7 +22,7 @@ abstract class AuthActor(kBucketActor: ActorRef) extends Actor with ActorLogging
       authChallenge(a)
   }
 
-  protected def authChallenge(msg: Message) = {}
+  private[protocol] def authChallenge(msg: Message) = {}
 
   protected final def authCheck: Actor.Receive = {
     case reply: AuthReply if reply.echoId == toEchoId =>
@@ -41,15 +41,15 @@ abstract class AuthActor(kBucketActor: ActorRef) extends Actor with ActorLogging
     context.stop(self)
   }
 
-  protected def authSuccess(reply: AuthReply) {}
+  private[protocol] def authSuccess(reply: AuthReply) {}
 }
 
 private[protocol] class SenderAuthActor(val id: Id, kBucketActor: ActorRef, node: ActorRef) extends AuthActor(kBucketActor) {
-  override protected def authChallenge(msg: Message) = msg match {
+  override private[protocol] def authChallenge(msg: Message) = msg match {
     case req: Request => node ! AuthSenderRequest(req, toEchoId)
   }
 
-  override protected def authSuccess(reply: AuthReply) {
+  override private[protocol] def authSuccess(reply: AuthReply) {
     (reply: @unchecked) match {
       case AuthRecieverReply(response, _, toEchoId) =>
         println(requestor);
@@ -62,12 +62,12 @@ private[protocol] class SenderAuthActor(val id: Id, kBucketActor: ActorRef, node
 private[protocol] class ReceiverAuthActor(kBucketActor: ActorRef, requestHandler: ActorRef, selfNode: ActorRef) extends AuthActor(kBucketActor) {
   var toEchoBack: Int = 0
 
-  override protected def authChallenge(msg: Message) = msg match {
+  override private[protocol] def authChallenge(msg: Message) = msg match {
     case AuthSenderRequest(req, echoId) =>
       toEchoBack = echoId
       requestHandler ! req
     case reply: Reply =>
-      requestor.tell(AuthRecieverReply(reply, toEchoBack, toEchoId), selfNode) // send the reply back
+      requestor.tell(AuthRecieverReply(reply, toEchoBack, toEchoId), selfNode)
   }
 }
 
