@@ -62,19 +62,19 @@ class IdTest extends BaseUnitTest {
     id.toString shouldBe "00000100"
   }
 
-  test("return the closer node when compared against two in Ordering") {
+  test("return the closer node when compared against two in Ordering using xor metric") {
     val id = Id("1010")
-    val order = new id.Order
+    val order = new id.SelfOrder
 
-    var cIdOne = Id("0100")
-    var cIdTwo = Id("0010")
+    var cIdOne = Id("0100") // 14
+    var cIdTwo = Id("0010") // 8
 
-    order.compare(cIdOne, cIdTwo) should be < 0
+    order.compare(cIdOne, cIdTwo) should be > 0
 
     cIdOne = Id("1110")
     cIdTwo = Id("1111")
 
-    order.compare(cIdOne, cIdTwo) should be > 0
+    order.compare(cIdOne, cIdTwo) should be < 0
 
     cIdOne = Id("1111")
     cIdTwo = Id("1111")

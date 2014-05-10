@@ -72,7 +72,7 @@ class KBucketTest extends BaseUnitTest with BaseKBucketFixture {
     var currentCount = 0
 
     trait StubbedClock extends Clock {
-      def getTime() = { currentCount += 1; currentCount }
+      override def getTime() = { currentCount += 1; currentCount }
     }
 
     val kbucket = new KBucket[RemoteNode](2)(LastSeenOrdering()) with StubbedClock { type T = RemoteNode }

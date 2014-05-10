@@ -4,7 +4,6 @@ import scala.collection.immutable.TreeSet
 
 import com.tommo.kademlia.misc.time.Clock
 import com.tommo.kademlia.protocol.Node
-import com.tommo.kademlia.misc.time.SystemClock
 
 class KBucket[T <: Node](val capacity: Int)(implicit nodeEvictionOrder: Ordering[TimeStampNode]) {
   self: Clock =>
@@ -48,6 +47,6 @@ class KBucket[T <: Node](val capacity: Int)(implicit nodeEvictionOrder: Ordering
 object KBucket {
   trait Provider {
     def capacity: Int
-    def newKBucketEntry[T <: Node]: KBucket[T] = new KBucket[T](capacity)(LastSeenOrdering()) with SystemClock
+    def newKBucketEntry[T <: Node]: KBucket[T] = new KBucket[T](capacity)(LastSeenOrdering()) with Clock
   }
 }

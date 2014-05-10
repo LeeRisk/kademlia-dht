@@ -21,6 +21,7 @@ case class Id(private[identity] val decimalVal: BigInt, val size: Int) {
 
     _longestPrefixLength(dist.size)
   }
+  
 
   def findAllNonMatchingFromRight(other: Id) = foldLeft(List[Int]()) {
     case (bit, list) => if (other.isBitSet(bit) != isBitSet(bit)) (bit - 1) :: list else list
@@ -34,25 +35,17 @@ case class Id(private[identity] val decimalVal: BigInt, val size: Int) {
     zeroPad + binary
   }
 
-  class Order extends Ordering[Id] {
+  class SelfOrder extends Ordering[Id] { // closeness relative to "this" id
     
     override def compare(x: Id, y: Id) = {
-      val (xPref, yPref) = (longestPrefixLength(x), longestPrefixLength(y))
-
-      if (xPref == yPref) {
-        val len = xPref
-        val n = size - len
-
-        val flipped = takeRight(n).flip
-        val (xRemaining, yRemaining) = (x.takeRight(n), y.takeRight(n))
-        flipped.distance(xRemaining).decimalVal.compare(flipped.distance(yRemaining).decimalVal)
-      } else
-        xPref - yPref
+    	val xDistInt = distance(x).decimalVal
+    	val yDistInt = distance(y).decimalVal
+    	
+    	xDistInt.compare(yDistInt)
     }
-
   }
 
-  private def flip = foldLeft(new Id(BigInt(0), size)) {
+  lazy val flip = foldLeft(new Id(BigInt(0), size)) {
     case (bit, id) => if (!isBitSet(bit)) id.setBit(bit) else id
   }
 
@@ -96,7 +89,7 @@ object Id {
   }
 
   def apply(idSize: Int)(decimalVal: BigInt): Id = {
-    require(decimalVal > 0, "Value can not be less than 0")
+    require(decimalVal >= 0, "Value can not be less than 0")
     require(idSize >= decimalVal.bitLength, s"idSize must be greater than the unsigned binary representation of $decimalVal")
     new Id(decimalVal, idSize)
   }

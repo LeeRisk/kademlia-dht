@@ -5,5 +5,6 @@ import com.tommo.kademlia.BaseFixture
 
 trait BaseProtocolFixture extends BaseFixture {
   	case class MockRequest(val sender: Id = Id("1")) extends Request 
+  	case class MockMutableRequest(val sender: Id = Id("1")) extends MutableRequest
   	case class MockReply(val sender: Id = Id("1")) extends Reply
 }

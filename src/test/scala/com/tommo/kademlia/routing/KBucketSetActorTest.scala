@@ -6,7 +6,7 @@ import com.tommo.kademlia.protocol.Message._
 import com.tommo.kademlia.protocol.RequestSenderActor._
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.routing.KBucketSetActor._
-
+import com.tommo.kademlia.protocol.Node
 import akka.actor.{ Props, Actor, ActorRef }
 import akka.testkit.{ TestActorRef, TestProbe, TestActor }
 import org.mockito.Matchers._
@@ -15,16 +15,21 @@ import org.mockito.Mockito._
 class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFixture {
 
   trait Fixture extends BaseKBucketFixture {
-    val mockProbe = TestProbe()
-    val reqSendProbe = TestProbe()
 
     val kSet = mock[KBucketSet[ActorNode]]
+
+    trait MockProvider extends KBucketSet.Provider {
+      override def newKSet[T <: Node](id: Id, kBucketCapacity: Int) = kSet.asInstanceOf[KBucketSet[T]]
+    }
+
+    val mockProbe = TestProbe()
+    val reqSendProbe = TestProbe()
 
     val kClosest = ActorNode(mockProbe.ref, aRandomId) :: ActorNode(mockProbe.ref, aRandomId) :: Nil
 
     when(kSet.getClosestInOrder(anyInt(), any())).thenReturn(kClosest)
 
-    val verifyRef = TestActorRef[KBucketSetActor](Props(new KBucketSetActor(kSet, reqSendProbe.ref)))
+    val verifyRef = TestActorRef[KBucketSetActor](Props(new KBucketSetActor(reqSendProbe.ref) with MockProvider))
 
   }
 
@@ -49,47 +54,69 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
   test("don't add if kBucket is full and the lowest ordered node is still alive") {
     new Fixture {
       val lowest = ActorNode(mockProbe.ref, aRandomId)
-      
+      val toAdd = ActorNode(mockProbe.ref, aRandomId)
+
       when(kSet.isFull(any())).thenReturn(true)
       when(kSet.getLowestOrder(any())).thenReturn(lowest)
-      
+
       reqSendProbe.setAutoPilot(new TestActor.AutoPilot {
         def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = msg match {
-          case NodeRequest(lowest.ref, PingRequest(lowest.id)) => sender ! PingReply(lowest.id); TestActor.NoAutoPilot
+          case NodeRequest(lowest.ref, PingRequest(lowest.id), _, _) =>
+            sender ! AckReply(lowest.id); TestActor.NoAutoPilot
           case _ => TestActor.NoAutoPilot
         }
       })
-      
-      verifyRef ! Add(ActorNode(mockProbe.ref, aRandomId))
-      
-      reqSendProbe.expectMsg(NodeRequest(lowest.ref, PingRequest(lowest.id)))
-      
+
+      verifyRef ! Add(toAdd)
+
+      reqSendProbe.expectMsg(NodeRequest(lowest.ref, PingRequest(lowest.id), customData = (lowest, toAdd)))
+
       verify(kSet, never()).add(any())
     }
   }
-  
-  test("add if kBucket is full and the lowest ordered node is dead") { 
+
+  test("add if kBucket is full and the lowest ordered node is dead") {
     new Fixture {
       val lowest = ActorNode(mockProbe.ref, aRandomId)
-      
+
       when(kSet.isFull(any())).thenReturn(true)
       when(kSet.contains(lowest)).thenReturn(true)
       when(kSet.getLowestOrder(any())).thenReturn(lowest)
-      
+
       reqSendProbe.setAutoPilot(new TestActor.AutoPilot {
         def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = msg match {
-          case NodeRequest(lowest.ref, PingRequest(lowest.id)) => Thread.sleep(mockConfig.roundTimeOut.toMillis + 10); TestActor.NoAutoPilot
+          case NodeRequest(lowest.ref, PingRequest(lowest.id), _, _) =>
+            sender ! RequestTimeout(PingRequest(lowest.id), customData = (lowest, toAdd)); 
+            TestActor.NoAutoPilot
           case _ => TestActor.NoAutoPilot
         }
       })
-      
+
       val toAdd = ActorNode(mockProbe.ref, aRandomId)
-      
+
       verifyRef ! Add(toAdd)
-      
-      reqSendProbe.expectMsg(NodeRequest(lowest.ref, PingRequest(lowest.id)))
-      
+
+      reqSendProbe.expectMsg(NodeRequest(lowest.ref, PingRequest(lowest.id),  customData = (lowest, toAdd)))
+
       awaitAssert(verify(kSet).add(toAdd))
+    }
+  }
+
+  test("return number of kBuckets") {
+    new Fixture {
+      when(kSet.addressSize).thenReturn(5)
+
+      verifyRef ! GetNumKBuckets
+
+      expectMsg(NumKBuckets(5))
+
+    }
+  }
+
+  test("discard to add id if it is same as self") {
+    new Fixture {
+      verifyRef ! Add(ActorNode(testActor, mockConfig.id))
+      verifyZeroInteractions(kSet) // TODO use await 
     }
   }
 }

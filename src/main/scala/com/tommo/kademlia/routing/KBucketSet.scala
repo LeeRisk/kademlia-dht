@@ -2,6 +2,7 @@ package com.tommo.kademlia.routing
 
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.protocol.Node
+import scala.util.Random
 
 class KBucketSet[T <: Node](id: Id) {
   self: KBucket.Provider =>
@@ -15,22 +16,36 @@ class KBucketSet[T <: Node](id: Id) {
   def add(node: T) {
     if (isFull(node))
       throw new IllegalStateException("KBucket is already full")
-    else
-      getKBucketIndex(node).add(node)
+    else {
+      if (contains(node))
+        remove(node)
+
+      getKBucket(node).add(node)
+    }
   }
 
-  private def getKBucketIndex(node: T) = {
-    val lp = id.longestPrefixLength(node.id)
-    kBucketArr(addressSize - lp - 1)
+  private[routing] def getKBucketIndex(node: T) = id.longestPrefixLength(node.id)
+
+  private def getKBucket(node: T) = kBucketArr(addressSize - getKBucketIndex(node) - 1)
+
+  def getLowestOrder(node: T) = getKBucket(node).getLowestOrder
+
+  def isFull(node: T) = getKBucket(node).isFull
+
+  def remove(node: T) = getKBucket(node).remove(node)
+
+  def contains(node: T) = !getKBucket(node).findNode(node).isEmpty
+
+  def getRandomId(bucket: Int) = {
+    require(bucket >= 0 && bucket < addressSize, s"Invalid bucket range $bucket")
+    val commonPref = id.toString.take(addressSize - bucket - 1); // TODO can use lazy arr's as these values remain the same throughout
+    val flipBit = id.flip.toString.charAt(bucket)
+
+    bucket match { 
+      case 0 => Id(commonPref + flipBit)
+      case _ => Id(commonPref + flipBit + Id(bucket)(BigInt(bucket, Random)).toString)
+    }
   }
-
-  def getLowestOrder(node: T) = getKBucketIndex(node).getLowestOrder
-
-  def isFull(node: T) = getKBucketIndex(node).isFull
-
-  def remove(node: T) = getKBucketIndex(node).remove(node) 
-  
-  def contains(node: T) = !getKBucketIndex(node).findNode(node).isEmpty
 
   def getClosestInOrder(k: Int = kBucketArr(0).capacity, anId: Id): List[T] = {
     val indices = id.findAllNonMatchingFromRight(anId)
@@ -43,12 +58,18 @@ class KBucketSet[T <: Node](id: Id) {
         val bucketIndex = traverseOrder.head
         val kbucket = kBucketArr(bucketIndex)
         val nodes = kbucket.getNodes.slice(0, k - count)
-        
+
         buildKClosest(count + nodes.size, acc ++ nodes, traverseOrder.tail)
       } else
         acc
     }
 
     buildKClosest()
+  }
+}
+
+object KBucketSet {
+  trait Provider {
+    def newKSet[T <: Node](id: Id, kBucketCapacity: Int): KBucketSet[T] = new KBucketSet[T](id) with KBucket.Provider { val capacity = kBucketCapacity }
   }
 }

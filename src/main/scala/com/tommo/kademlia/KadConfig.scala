@@ -12,8 +12,11 @@ trait KadConfig {
 	def host: Host
 	def kBucketSize: Int
 	def addressSpace: Int
-	def concurrency: Int
+	def roundConcurrency: Int
+	def requestTimeOut: FiniteDuration
 	def roundTimeOut: FiniteDuration
+	def refreshStaleKBucket: FiniteDuration
+	def refreshStore: FiniteDuration
 	def id: Id
 }
 
@@ -23,17 +26,22 @@ class TypeSafeKadConfig(config: Config) extends KadConfig {
   config.checkValid(ConfigFactory.defaultReference(), namespace)
 
   val host = Host(config.getString(s"${namespace}.host"), config.getInt(s"${namespace}.port"))
+  
+  val requestTimeOut = FiniteDuration(config.getInt(s"${namespace}.request-timeout-ms"), MILLISECONDS)
+  
+  val refreshStaleKBucket = FiniteDuration(config.getInt(s"${namespace}.kbucket-stale-seconds"), SECONDS)
 
+  val refreshStore = FiniteDuration(config.getInt(s"${namespace}.store-refresh-seconds"), SECONDS)
+  
   val kBucketSize = config.getInt(s"${namespace}.kbucket-size")
 
   val addressSpace = config.getInt(s"${namespace}.address-space")
   
-  val concurrency = config.getInt(s"${namespace}.concurrency")
+  val roundConcurrency = config.getInt(s"${namespace}.round-concurrency")
   
   val roundTimeOut = FiniteDuration(config.getInt(s"${namespace}.round-timeout-ms"), MILLISECONDS)
   
-  val id = Id(config.getString(s"${namespace}.id"))
-  
+  val id = Id(config.getString(s"${namespace}.id")) // TODO use provider to get id
 }
 
 object TypeSafeKadConfig {

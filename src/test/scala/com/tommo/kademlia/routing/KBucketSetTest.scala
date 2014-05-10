@@ -45,11 +45,22 @@ class KBucketSetTest extends BaseUnitTest with BaseKBucketFixture {
 
   test("get the kth closest ids") {
     new Fixture {
-
       val nodesOrderedClosest = List(aNode("0100"), aNode("0001"), aNode("0010"), aNode("1000"))
       addNode(nodesOrderedClosest)
 
       bucketSet.getClosestInOrder(5, Id("0101")) should contain theSameElementsInOrderAs nodesOrderedClosest
+    }
+  }
+  
+  test("generate random id for specified kBucket") {
+    new Fixture {
+    	val totalBuckets = bucketSet.addressSize
+    	
+    	val randIds = for(x <- 0 until totalBuckets) yield (totalBuckets - x - 1, bucketSet.getRandomId(x))
+    	
+    	randIds.foreach({
+    	  case (bucket, randId) => bucketSet.getKBucketIndex(aNode(randId.toString)) shouldBe bucket
+    	})
     }
   }
 }

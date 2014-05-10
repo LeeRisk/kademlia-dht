@@ -19,7 +19,7 @@ class KadAkkaTest extends BaseTestKit("KadAkkaTest") with BaseFixture {
 
   test("send the actor a join msg when constructed with an existing kad network") {
     trait MockProvider extends KadActorProvider {
-      override def newKadActor(self: Id)(implicit config: KadConfig) = { println("called"); wrapTestActor }
+      override def newKadActor(self: Id)(implicit config: KadConfig) = { wrapTestActor }
     }
 
     new ExistingKadNetwork(mockHost, system) with IdGenerator with MockProvider

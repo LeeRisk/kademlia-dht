@@ -11,7 +11,7 @@ import akka.testkit.TestProbe
 
 import org.mockito.Matchers._
 import org.mockito.Mockito._
-
+import scala.concurrent.duration.Duration
 class RequestSenderTest extends BaseTestKit("SenderSpec") with BaseProtocolFixture {
   val someProbe = TestProbe()
   val kBucketProbe = TestProbe()
@@ -19,14 +19,14 @@ class RequestSenderTest extends BaseTestKit("SenderSpec") with BaseProtocolFixtu
   lazy val mockProvider = mock[AuthActor.Provider]
 
   trait MockAuthProvider extends AuthActor.Provider {
-    override def authSender(id: Id, kBucketActor: ActorRef, node: ActorRef) = { mockProvider.authSender(id, kBucketActor, node); wrapActorRef(someProbe.ref) }
+    override def authSender(kBucketActor: ActorRef, node: ActorRef, discoverNewNode: Boolean, customData: Option[Any], timeout: Duration) = { mockProvider.authSender(kBucketActor, node, discoverNewNode, customData, timeout); wrapActorRef(someProbe.ref) }
   }
   
-  val verifyRef = TestActorRef[RequestSenderActor](Props(new RequestSenderActor(mockZeroId(4), kBucketProbe.ref) with MockAuthProvider))
+  val verifyRef = TestActorRef[RequestSenderActor](Props(new RequestSenderActor(kBucketProbe.ref, mockConfig.requestTimeOut) with MockAuthProvider))
 		  
   test("upon receiving a node request, create actor returned from authSender") {
-    verifyRef ! NodeRequest(someProbe.ref, MockRequest())
-    awaitAssert(verify(mockProvider).authSender(mockZeroId(4), kBucketProbe.ref, someProbe.ref))
+    verifyRef ! NodeRequest(someProbe.ref, MockRequest(), false, customData = "custom data")
+    awaitAssert(verify(mockProvider).authSender(kBucketProbe.ref, someProbe.ref, false, Some("custom data"), mockConfig.requestTimeOut))
   }
 
   test("forward the request using the sender") {
