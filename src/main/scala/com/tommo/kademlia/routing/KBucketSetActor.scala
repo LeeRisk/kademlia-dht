@@ -23,7 +23,7 @@ class KBucketSetActor(requestSender: ActorRef)(implicit kadConfig: KadConfig) ex
   def receive = eventSourceReceive orElse { 
     case GetRandomId(buckets) => sender ! RandomId(buckets.map(b => (b, kSet.getRandomId(b))))
     case GetNumKBuckets => sender ! NumKBuckets(kSet.addressSize)
-    case GetKClosest(id, k) => sender ! KClosest(id, kSet.getClosestInOrder(k, id))
+    case KClosestRequest(_, searchId, k) => sender ! KClosestReply(id, kSet.getClosestInOrder(k, searchId))
     case addReq @ Add(node) if node.id != kadConfig.id =>
       doAdd(node)
       sendEvent(addReq)
@@ -45,8 +45,6 @@ class KBucketSetActor(requestSender: ActorRef)(implicit kadConfig: KadConfig) ex
 
 object KBucketSetActor {
   case class Add(node: ActorNode)
-  case class GetKClosest(id: Id, k: Int)
-  case class KClosest(id: Id, nodes: List[ActorNode])
 
   case object GetNumKBuckets
   case class NumKBuckets(numBuckets: Int)

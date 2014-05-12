@@ -28,7 +28,7 @@ object Message {
   case class StoreRequest[V](val sender: Id, val key: Id, value: V) extends MutableRequest
   case class AckReply(val sender: Id) extends Reply 
 
-  case class FindValueRequest(val sender: Id, val key: Id) extends Request
+  case class FindValueRequest(val sender: Id, val searchId: Id, k: Int) extends Request
   case class FindValueReply[V](val sender: Id, result: Either[List[ActorNode], Set[V]]) extends Reply
 
   case class AuthSenderRequest(req: Request, val toEcho: Int) extends MessageWrapper(req) with AuthChallenge

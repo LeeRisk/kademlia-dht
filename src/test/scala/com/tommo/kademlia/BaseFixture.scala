@@ -30,5 +30,8 @@ trait BaseFixture {
   def mockZeroId(size: Int) = Id((for (i <- 1 to size) yield ('0'))(collection.breakOut))
 
   def aRandomId = Id(Random.nextInt.toBinaryString)
+  
+  def aRandomId(size: Int) = Id(Random.nextInt.toBinaryString.take(size))
+  
 
 }

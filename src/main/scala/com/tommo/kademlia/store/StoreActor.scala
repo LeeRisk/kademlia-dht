@@ -27,9 +27,6 @@ class StoreActor[V](val selfId: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef
       toReplicate.foreach(reqSenderRef ! _)
     case _ =>
   }
-  
-  
-
 }
 
 object StoreActor {

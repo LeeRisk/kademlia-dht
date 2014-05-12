@@ -1,13 +1,15 @@
-package com.tommo.kademlia
+package com.tommo.kademlia.lookup
 
 import com.tommo.kademlia.routing.KBucketSetActor._
-import akka.actor.{ Actor, Props }
+import akka.actor.Props
 import com.tommo.kademlia.identity.Id
 import akka.testkit.{ TestActorRef, TestProbe }
 import LookupActor._
 import com.tommo.kademlia.util.EventSource._
+import com.tommo.kademlia.BaseFixture
+import com.tommo.kademlia.BaseTestKit
 
-class LookupActorTest extends BaseTestKit("LookupActorSpec") with BaseFixture {
+class LookupDispatcherTest extends BaseTestKit("LookupDispatcher") with BaseFixture {
   trait Fixture {
     val kProbe = TestProbe()
     val timerProbe = TestProbe()
@@ -21,15 +23,15 @@ class LookupActorTest extends BaseTestKit("LookupActorSpec") with BaseFixture {
     }
   }
 
-  test("after receiving number of buckets; get random id from kbucketset") {
+  test("after receiving number of buckets; get random id from kbucketset") {(
     new Fixture {
       verifyRef ! NumKBuckets(2)
 
-      kProbe.fishForMessage() {
+      kProbe.fishForMessage() ({
         case GetRandomId(List(0, 1)) => true
         case a => false
-      }
-    }
+      })
+    })
   }
 
   test("after receiving random ids; start refresh timer") {

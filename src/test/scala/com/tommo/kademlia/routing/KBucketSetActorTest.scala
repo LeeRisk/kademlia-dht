@@ -35,9 +35,9 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
 
   test("return the KClosest to an id by invoking getClosestInOrder method") {
     new Fixture {
-      verifyRef ! GetKClosest(mockZeroId(4), mockConfig.kBucketSize)
+      verifyRef ! KClosestRequest(mockConfig.id, mockZeroId(4), mockConfig.kBucketSize)
 
-      expectMsg(KClosest(mockZeroId(4), kClosest))
+      expectMsg(KClosestReply(mockConfig.id, kClosest))
 
       verify(kSet).getClosestInOrder(mockConfig.kBucketSize, mockZeroId(4))
     }
