@@ -31,5 +31,4 @@ class StoreActor[V](val selfId: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef
 
 object StoreActor {
   case class Insert[V](key: Id, value: V)
-
 }

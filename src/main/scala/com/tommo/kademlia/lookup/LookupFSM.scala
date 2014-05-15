@@ -12,7 +12,6 @@ import LookupFSM._
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.FSM
-import akka.actor.actorRef2Scala
 
 abstract class LookupFSM(selfId: Id, kclosestRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) extends FSM[State, Data] with ActorLogging {
   import context._

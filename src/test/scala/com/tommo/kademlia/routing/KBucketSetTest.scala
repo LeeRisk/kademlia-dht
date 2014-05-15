@@ -59,7 +59,7 @@ class KBucketSetTest extends BaseUnitTest with BaseKBucketFixture {
     	val randIds = for(x <- 0 until totalBuckets) yield (totalBuckets - x - 1, bucketSet.getRandomId(x))
     	
     	randIds.foreach({
-    	  case (bucket, randId) => bucketSet.getKBucketIndex(aNode(randId.toString)) shouldBe bucket
+    	  case (bucket, randId) => bucketSet.getKBucketIndex(randId) shouldBe bucket
     	})
     }
   }

@@ -116,7 +116,7 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
   test("discard to add id if it is same as self") {
     new Fixture {
       verifyRef ! Add(ActorNode(testActor, mockConfig.id))
-      verifyZeroInteractions(kSet) // TODO use await 
+      verifyZeroInteractions(kSet) 
     }
   }
 }

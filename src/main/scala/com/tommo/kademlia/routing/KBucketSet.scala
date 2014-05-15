@@ -24,9 +24,9 @@ class KBucketSet[T <: Node](id: Id) {
     }
   }
 
-  private[routing] def getKBucketIndex(node: T) = id.longestPrefixLength(node.id)
+  private[routing] def getKBucketIndex(nodeId: Id) = id.longestPrefixLength(nodeId)
 
-  private def getKBucket(node: T) = kBucketArr(addressSize - getKBucketIndex(node) - 1)
+  private def getKBucket(node: T) = kBucketArr(addressSize - getKBucketIndex(node.id) - 1)
 
   def getLowestOrder(node: T) = getKBucket(node).getLowestOrder
 
@@ -35,7 +35,7 @@ class KBucketSet[T <: Node](id: Id) {
   def remove(node: T) = getKBucket(node).remove(node)
 
   def contains(node: T) = !getKBucket(node).findNode(node).isEmpty
-
+  
   def getRandomId(bucket: Int) = {
     require(bucket >= 0 && bucket < addressSize, s"Invalid bucket range $bucket")
     val commonPref = id.toString.take(addressSize - bucket - 1); // TODO can use lazy arr's as these values remain the same throughout

@@ -21,6 +21,9 @@ class KBucketSetActor(requestSender: ActorRef)(implicit kadConfig: KadConfig) ex
   val kSet = newKSet[ActorNode](id, kBucketSize) // TODO don't want to restart this actor if exception occurs since it contains routing info
 
   def receive = eventSourceReceive orElse { 
+    case GetRandomIdInSameBucketAs(id) => 
+      val index = kSet.getKBucketIndex(id)
+      sender ! RandomId((index, kSet.getRandomId(index)) :: Nil)
     case GetRandomId(buckets) => sender ! RandomId(buckets.map(b => (b, kSet.getRandomId(b))))
     case GetNumKBuckets => sender ! NumKBuckets(kSet.addressSize)
     case KClosestRequest(_, searchId, k) => sender ! KClosestReply(id, kSet.getClosestInOrder(k, searchId))
@@ -50,7 +53,9 @@ object KBucketSetActor {
   case class NumKBuckets(numBuckets: Int)
   
   case class GetRandomId(buckets: List[Int])
+  case class GetRandomIdInSameBucketAs(id: Id)
   case class RandomId(randIds: List[(Int, Id)])
+  
   
   private case class AddPingFailure(toAdd: ActorNode, deadNode: ActorNode)
 }
