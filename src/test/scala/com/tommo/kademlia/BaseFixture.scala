@@ -23,8 +23,6 @@ trait BaseFixture {
 
   implicit val mockConfig = new TestKadConfig
 
-  import mockConfig._
-  
   def mockHost = Host("hostname:9009")
 
   def mockZeroId(size: Int) = Id((for (i <- 1 to size) yield ('0'))(collection.breakOut))

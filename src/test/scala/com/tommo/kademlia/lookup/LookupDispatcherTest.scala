@@ -5,6 +5,7 @@ import akka.actor.{ Props, Actor }
 import com.tommo.kademlia.identity.Id
 import akka.testkit.{ TestActorRef, TestProbe }
 import LookupActor._
+import com.tommo.kademlia.util.RefreshActor._
 import com.tommo.kademlia.util.EventSource._
 import com.tommo.kademlia.BaseFixture
 import com.tommo.kademlia.BaseTestKit
@@ -52,27 +53,19 @@ class LookupDispatcherTest extends BaseTestKit("LookupDispatcher") with BaseFixt
     new Fixture {
       val randIds = List((0, Id("001")), (1, Id("010")))
 
-      val refreshReq = randIds.map(p => RefreshBucketTimer(p._1, RefreshBucket(p._2), mockConfig.refreshStaleKBucket))
+      val refreshReq = randIds.map(p => RefreshBucketTimer(p._1, p._2, mockConfig.refreshStaleKBucket))
 
       verifyRef ! RandomId(randIds)
+      
+      println(refreshReq)
 
       timerProbe.expectMsgAllOf(refreshReq: _*)
     }
   }
 
-  test("Send ready after initialized") {
-    new Fixture {
-      verifyRef ! RegisterListener(testActor)
-      verifyRef ! RandomId(List((0, Id("000"))))
-
-      expectMsg(Ready)
-    }
-  }
-
   test("on RefreshBucket event, perform a node lookup") {
     new Fixture {
-      verifyRef.underlyingActor.context.become(verifyRef.underlyingActor.init)
-      verifyRef ! RefreshBucket(Id("1010"))
+      verifyRef ! RefreshDone(2, Id("1010"))
       lookupNodeProbe.expectMsg(Id("1010"))
       expectGetRandomIdInSameBucketAs(Id("1010"))
     }
@@ -80,7 +73,6 @@ class LookupDispatcherTest extends BaseTestKit("LookupDispatcher") with BaseFixt
 
   test("on value lookup -> invoke value producer") {
     new Fixture {
-      verifyRef.underlyingActor.context.become(verifyRef.underlyingActor.init)
       verifyRef ! FindKValue(Id("1010"))
       lookupValueProbe.expectMsg(Id("1010"))
       expectGetRandomIdInSameBucketAs(Id("1010"))
@@ -89,7 +81,6 @@ class LookupDispatcherTest extends BaseTestKit("LookupDispatcher") with BaseFixt
 
   test("on nook lookup -> invoke node producer") {
     new Fixture {
-      verifyRef.underlyingActor.context.become(verifyRef.underlyingActor.init)
       verifyRef ! FindKNode(Id("1010"))
       lookupNodeProbe.expectMsg(Id("1010"))
       expectGetRandomIdInSameBucketAs(Id("1010"))

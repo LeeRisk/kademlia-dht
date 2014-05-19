@@ -10,7 +10,7 @@ import com.tommo.kademlia.util.RefreshActor.Refresh
 
 import akka.actor.Props
 import akka.testkit.TestActorRef
-
+import RefreshActor._
 import org.mockito.Matchers._
 import org.mockito.Mockito._
 
@@ -24,10 +24,10 @@ class RefreshActorTest extends BaseTestKit("RefreshActorSpec") {
 
     val verifyRef = TestActorRef[RefreshActor](Props(new RefreshActor with ZeroedClock))
 
-    def mockRequest(mockAfter: FiniteDuration, mockAt: Epoch = 0, mockKey: String = "key", mockEvent: String = "HELLO", mockRefreshKey: String = "mockRefresh") = new Refresh {
+    def mockRequest(mockAfter: FiniteDuration, mockAt: Epoch = 0, mockKey: String = "key", mockValue: String = "HELLO", mockRefreshKey: String = "mockRefresh") = new Refresh {
       val refreshKey = mockRefreshKey
       val key: Any = mockKey
-      val event: Any = mockEvent
+      val value: Any = mockValue
       override val at: Epoch = mockAt
       val after: FiniteDuration = mockAfter
     }
@@ -39,7 +39,7 @@ class RefreshActorTest extends BaseTestKit("RefreshActorSpec") {
 
       verifyRef ! mockRequest(at)
       expectNoMsg(at)
-      expectMsg("HELLO")
+      expectMsg(RefreshDone("key", "HELLO"))
     }
   }
 
@@ -49,9 +49,9 @@ class RefreshActorTest extends BaseTestKit("RefreshActorSpec") {
       val later = 100 millis
 
       verifyRef ! mockRequest(later)
-      verifyRef ! mockRequest(earlier, mockKey = "key2",mockEvent = "WORLD")
-      expectMsg("WORLD")
-      expectMsg("HELLO")
+      verifyRef ! mockRequest(earlier, mockKey = "key2", mockValue = "WORLD")
+      expectMsg(RefreshDone("key2", "WORLD"))
+      expectMsg(RefreshDone("key", "HELLO"))
     }
   }
 
@@ -60,20 +60,20 @@ class RefreshActorTest extends BaseTestKit("RefreshActorSpec") {
       val earlier = 50 millis
       val later = 50 millis
 
-      verifyRef ! mockRequest(earlier,  mockKey = "key2", mockEvent = "WORLD")
+      verifyRef ! mockRequest(earlier,  mockKey = "key2", mockValue = "WORLD")
       verifyRef ! mockRequest(later)
-      expectMsg("WORLD")
-      expectMsg("HELLO")
+      expectMsg(RefreshDone("key2", "WORLD"))
+      expectMsg(RefreshDone("key", "HELLO"))
     }
   }
 
   test("if messages with same refreshkey and key in regards to equals() received and one is scheduled; override using the latest") {
     new Fixture {
-      verifyRef ! mockRequest(50 millis, mockEvent = "HELLO")
-      verifyRef ! mockRequest(100 millis, mockEvent = "WORLD")
-      verifyRef ! mockRequest(100 millis, mockEvent = "!!")
+      verifyRef ! mockRequest(50 millis, mockValue = "HELLO")
+      verifyRef ! mockRequest(100 millis, mockValue = "WORLD")
+      verifyRef ! mockRequest(100 millis, mockValue = "!!")
       
-      expectMsg("!!")
+      expectMsg(RefreshDone("key", "!!"))
       expectNoMsg()
     }
 

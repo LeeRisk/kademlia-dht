@@ -46,6 +46,10 @@ class KBucketSet[T <: Node](id: Id) {
       case _ => Id(commonPref + flipBit + Id(bucket)(BigInt(bucket, Random)).toString)
     }
   }
+  
+  def getNodesBetween(id: Id) {
+    
+  }
 
   def getClosestInOrder(k: Int = kBucketArr(0).capacity, anId: Id): List[T] = {
     val indices = id.findAllNonMatchingFromRight(anId)

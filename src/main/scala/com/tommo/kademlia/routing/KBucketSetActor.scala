@@ -40,7 +40,6 @@ class KBucketSetActor(requestSender: ActorRef)(implicit kadConfig: KadConfig) ex
       kSet.add(toAdd)
     } else {
       val lowestOrder = kSet.getLowestOrder(toAdd)
-      
       requestSender ! NodeRequest(lowestOrder.ref, PingRequest(lowestOrder.id), customData = (lowestOrder, toAdd))
     }
   }
@@ -54,9 +53,7 @@ object KBucketSetActor {
   
   case class GetRandomId(buckets: List[Int])
   case class GetRandomIdInSameBucketAs(id: Id)
-  case class RandomId(randIds: List[(Int, Id)])
+  case class RandomId(randIds: List[(Int, Id)]) // list of tuple that represents (index of bucketset, id)
   
-  
-  private case class AddPingFailure(toAdd: ActorNode, deadNode: ActorNode)
 }
 

@@ -12,6 +12,8 @@ object RefreshActor {
   sealed trait State
   sealed trait Data
 
+  case class RefreshDone(key: Any, value: Any)
+  
   case object Running extends State
   case object Empty extends Data
 
@@ -35,9 +37,10 @@ object RefreshActor {
   abstract class Refresh {
     val refreshKey: String
     val key: Any
-    val event: Any
+    val value: Any
     val at: Epoch = System.currentTimeMillis()
     val after: FiniteDuration
+    println(at)
   }
 }
 
@@ -72,7 +75,7 @@ class RefreshActor extends FSM[State, Data] {
       
       stay using Empty
     case Event(sr: SenderRefresh, _) =>
-      sr.sender ! sr.refresh.event
+      sr.sender ! RefreshDone(sr.refresh.key, sr.refresh.value)
       startTimer()
       stay using Empty
   }
