@@ -11,7 +11,7 @@ private[protocol] sealed class MessageWrapper(msg: Message) extends Message {
   val sender = msg.sender
 }
 
-trait Request extends Message 
+trait Request extends Message
 trait MutableRequest extends Request
 trait Reply extends Message
 
@@ -26,8 +26,9 @@ object Message {
   case class KClosestReply(val sender: Id, nodes: List[ActorNode]) extends Reply
 
   case class StoreRequest[V](val sender: Id, val key: Id, value: V) extends MutableRequest
-  case class AckReply(val sender: Id) extends Reply 
-
+  case class AckReply(val sender: Id) extends Reply
+  
+  
   case class FindValueRequest(val sender: Id, val searchId: Id, k: Int) extends Request
   case class FindValueReply[V](val sender: Id, result: Either[List[ActorNode], Set[V]]) extends Reply
 

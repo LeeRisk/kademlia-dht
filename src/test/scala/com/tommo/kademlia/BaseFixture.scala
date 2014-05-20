@@ -15,13 +15,13 @@ trait BaseFixture {
     val addressSpace = 4
     val roundConcurrency = 2
     val refreshStaleKBucket = 1 seconds
-    val refreshStore = 1 seconds
+    val refreshStore = 24 hours
     val roundTimeOut = 10 seconds
     val requestTimeOut = 10 seconds
-    val id = mockZeroId(kBucketSize)
   }
 
   implicit val mockConfig = new TestKadConfig
+  val id = mockZeroId(mockConfig.kBucketSize)
 
   def mockHost = Host("hostname:9009")
 

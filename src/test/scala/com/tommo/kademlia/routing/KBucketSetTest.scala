@@ -10,11 +10,11 @@ import com.tommo.kademlia.protocol._
 class KBucketSetTest extends BaseUnitTest with BaseKBucketFixture {
 
   trait Fixture {
-    implicit val selfId = mockZeroId(4)
+    val selfId = mockZeroId(4)
 
     def alwaysTrue(node: Node) = true
 
-    val bucketSet = new KBucketSet[RemoteNode](selfId) with MockKBucketProvider
+    lazy val bucketSet = new KBucketSet[RemoteNode](selfId) with MockKBucketProvider
 
     def addNode(nodes: List[RemoteNode]) {
       for (node <- nodes) {
@@ -51,6 +51,18 @@ class KBucketSetTest extends BaseUnitTest with BaseKBucketFixture {
       bucketSet.getClosestInOrder(5, Id("0101")) should contain theSameElementsInOrderAs nodesOrderedClosest
     }
   }
+  
+  test("get nodes in between self id and specified id") {
+    new Fixture {
+      override val selfId = Id("0101")
+      val inBetween = List(aNode("0100"), aNode("0001"))
+      val otherNodes = List(aNode("0010"))
+      addNode(inBetween ::: otherNodes)
+      
+      bucketSet.getNodesBetween(Id("0011")) shouldBe 2
+    }
+  }
+  
   
   test("generate random id for specified kBucket") {
     new Fixture {

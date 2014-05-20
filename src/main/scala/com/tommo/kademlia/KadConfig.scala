@@ -17,7 +17,6 @@ trait KadConfig {
 	def roundTimeOut: FiniteDuration
 	def refreshStaleKBucket: FiniteDuration
 	def refreshStore: FiniteDuration
-	def id: Id
 }
 
 class TypeSafeKadConfig(config: Config) extends KadConfig {

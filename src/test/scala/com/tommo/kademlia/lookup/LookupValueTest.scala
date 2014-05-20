@@ -25,7 +25,7 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
 
   test("return FindValueRequest") {
     new Fixture {
-      ref.underlyingActor.getRequest(mockZeroId(4), 4) shouldBe FindValueRequest(mockConfig.id, mockZeroId(4), 4)
+      ref.underlyingActor.getRequest(mockZeroId(4), 4) shouldBe FindValueRequest(id, mockZeroId(4), 4)
     }
   }
   

@@ -29,15 +29,15 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
 
     when(kSet.getClosestInOrder(anyInt(), any())).thenReturn(kClosest)
 
-    val verifyRef = TestActorRef[KBucketSetActor](Props(new KBucketSetActor(reqSendProbe.ref) with MockProvider))
+    val verifyRef = TestActorRef[KBucketSetActor](Props(new KBucketSetActor(id, reqSendProbe.ref) with MockProvider))
 
   }
 
   test("return the KClosest to an id by invoking getClosestInOrder method") {
     new Fixture {
-      verifyRef ! KClosestRequest(mockConfig.id, mockZeroId(4), mockConfig.kBucketSize)
+      verifyRef ! KClosestRequest(id, mockZeroId(4), mockConfig.kBucketSize)
 
-      expectMsg(KClosestReply(mockConfig.id, kClosest))
+      expectMsg(KClosestReply(id, kClosest))
 
       verify(kSet).getClosestInOrder(mockConfig.kBucketSize, mockZeroId(4))
     }
@@ -112,10 +112,22 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
 
     }
   }
+  
+  test("get node in between") {
+    new Fixture {
+      val anId = Id("1010")
+      when(kSet.getNodesBetween(anId)).thenReturn(2)
+      
+      verifyRef ! GetNumNodesInBetween(anId)
+      expectMsg(NumNodesInBetween(anId, 2))
+      verify(kSet).getNodesBetween(anId)
+      
+    }
+  }
 
   test("discard to add id if it is same as self") {
     new Fixture {
-      verifyRef ! Add(ActorNode(testActor, mockConfig.id))
+      verifyRef ! Add(ActorNode(testActor, id))
       verifyZeroInteractions(kSet) 
     }
   }

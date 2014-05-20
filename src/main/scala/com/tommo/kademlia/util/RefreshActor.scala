@@ -1,6 +1,5 @@
 package com.tommo.kademlia.util
 
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 import scala.collection.mutable.{ PriorityQueue, Map }
 import com.tommo.kademlia.misc.time.Clock
@@ -39,8 +38,7 @@ object RefreshActor {
     val key: Any
     val value: Any
     val at: Epoch = System.currentTimeMillis()
-    val after: FiniteDuration
-    println(at)
+    val after: Duration
   }
 }
 

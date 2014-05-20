@@ -47,9 +47,7 @@ class KBucketSet[T <: Node](id: Id) {
     }
   }
   
-  def getNodesBetween(id: Id) {
-    
-  }
+  def getNodesBetween(anId: Id) = id.findAllNonMatchingFromRight(anId).map(kBucketArr(_).size).sum
 
   def getClosestInOrder(k: Int = kBucketArr(0).capacity, anId: Id): List[T] = {
     val indices = id.findAllNonMatchingFromRight(anId)

@@ -11,7 +11,7 @@ import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.event.Logging
 
-class KBucketSetActor(requestSender: ActorRef)(implicit kadConfig: KadConfig) extends Actor with EventSource {
+class KBucketSetActor(id: Id, requestSender: ActorRef)(implicit kadConfig: KadConfig) extends Actor with EventSource {
   this: KBucketSet.Provider =>
 
   import KBucketSetActor._
@@ -20,14 +20,15 @@ class KBucketSetActor(requestSender: ActorRef)(implicit kadConfig: KadConfig) ex
   
   val kSet = newKSet[ActorNode](id, kBucketSize) // TODO don't want to restart this actor if exception occurs since it contains routing info
 
-  def receive = eventSourceReceive orElse { 
+  def receive = eventSourceReceive orElse {
+    case GetNumNodesInBetween(id) => sender ! NumNodesInBetween(id, kSet.getNodesBetween(id))
     case GetRandomIdInSameBucketAs(id) => 
       val index = kSet.getKBucketIndex(id)
       sender ! RandomId((index, kSet.getRandomId(index)) :: Nil)
     case GetRandomId(buckets) => sender ! RandomId(buckets.map(b => (b, kSet.getRandomId(b))))
     case GetNumKBuckets => sender ! NumKBuckets(kSet.addressSize)
     case KClosestRequest(_, searchId, k) => sender ! KClosestReply(id, kSet.getClosestInOrder(k, searchId))
-    case addReq @ Add(node) if node.id != kadConfig.id =>
+    case addReq @ Add(node) if node.id != id =>
       doAdd(node)
       sendEvent(addReq)
     case RequestTimeout(PingRequest(_), Some((dead: ActorNode, toAdd: ActorNode))) if (kSet.contains(dead)) =>
@@ -55,5 +56,7 @@ object KBucketSetActor {
   case class GetRandomIdInSameBucketAs(id: Id)
   case class RandomId(randIds: List[(Int, Id)]) // list of tuple that represents (index of bucketset, id)
   
+  case class GetNumNodesInBetween(id: Id)
+  case class NumNodesInBetween(id: Id, numNode: Int)
 }
 

@@ -38,7 +38,7 @@ class LookupFSMTest extends BaseTestKit("LookupFSMSpec") with BaseFixture {
   test("send to the KCloseset Actor the id to get the k-closest locally known nodes") {
     new Fixture {
       ref ! toFindId
-      kClosestProbe.expectMsg(KClosestRequest(mockConfig.id, toFindId, mockConfig.kBucketSize))
+      kClosestProbe.expectMsg(KClosestRequest(id, toFindId, mockConfig.kBucketSize))
 
       ref.stateName should equal(WaitForLocalKclosest)
       ref.stateData should equal(lookupReq)
@@ -49,7 +49,7 @@ class LookupFSMTest extends BaseTestKit("LookupFSMSpec") with BaseFixture {
     new Fixture {
       ref.setState(WaitForLocalKclosest, lookupReq)
 
-      ref ! KClosestReply(mockConfig.id, mockActorNode("1010") :: Nil)
+      ref ! KClosestReply(id, mockActorNode("1010") :: Nil)
 
       ref.stateName should equal(QueryNode)
     }
@@ -60,8 +60,8 @@ class LookupFSMTest extends BaseTestKit("LookupFSMSpec") with BaseFixture {
       ref.setState(WaitForLocalKclosest, lookupReq)
       ref.setState(QueryNode, queryNodeDataDefault())
 
-      reqSendProbe.expectMsgAllOf(NodeRequest(testActor, KClosestRequest(mockConfig.id, toFindId, mockConfig.kBucketSize)),
-        NodeRequest(testActor, KClosestRequest(mockConfig.id, toFindId, mockConfig.kBucketSize)))
+      reqSendProbe.expectMsgAllOf(NodeRequest(testActor, KClosestRequest(id, toFindId, mockConfig.kBucketSize)),
+        NodeRequest(testActor, KClosestRequest(id, toFindId, mockConfig.kBucketSize)))
     }
   }
 
