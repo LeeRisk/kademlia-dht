@@ -55,7 +55,7 @@ class LookupValue[V](selfId: Id, storeRef: ActorRef, reqSender: ActorRef, kBucke
   }
 
   onTransition {
-    case QueryNode -> FinalizeValue => initStateStartTimer("startFinalizeValue")
+    case QueryNode -> FinalizeValue => initStateTimer("startFinalizeValue")
   }
 }
 

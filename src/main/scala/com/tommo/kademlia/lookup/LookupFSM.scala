@@ -69,12 +69,12 @@ abstract class LookupFSM(selfId: Id, kclosestRef: ActorRef, reqSender: ActorRef,
   }
 
   onTransition {
-    case _ -> QueryNode => initStateStartTimer("startQueryNode") // uses from state receive handler instead of to state;
-    case QueryNode -> GatherNode => initStateStartTimer("startGatherNode") 
-    case QueryNode -> Finalize => initStateStartTimer("startFinalize") 
+    case _ -> QueryNode => initStateTimer("startQueryNode") // uses from state receive handler instead of to state;
+    case QueryNode -> GatherNode => initStateTimer("startGatherNode") 
+    case QueryNode -> Finalize => initStateTimer("startFinalize") 
   }
   
-  def initStateStartTimer(name: String) = setTimer(name, Start, 1 micros, false)
+  def initStateTimer(name: String) = setTimer(name, Start, 1 micros, false)
   
   def localKclosestState(localReply: { val nodes: List[ActorNode] }, req: Lookup): State = {
       val qd = QueryNodeData(req, seen = TreeMap(localReply.nodes.map(actorNodeToKeyPair(_, round = 1)): _*)(new req.id.SelfOrder), currRound = 1)

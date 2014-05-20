@@ -27,7 +27,7 @@ class StoreActor[V](id: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef, timerR
     kBucketRef ! UnregisterListener(self)
   }
 
-  val expireMap = Map[Id, Duration]() // TODO race condition there can multiple store requests with the same id; the previous expire timer can remove the value
+  val expireMap = Map[Id, (Int, Duration)]()
 
   def receive = {
     case insertMsg: Insert[V] =>
@@ -40,24 +40,29 @@ class StoreActor[V](id: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef, timerR
     case storeReq: StoreRequest[V] =>
       import storeReq._
       insert(key, value)
-      kBucketRef ! GetNumNodesInBetween(key)
+      kBucketRef ! GetNumNodesInBetween(key) 
     case NumNodesInBetween(key, numNode) =>
       scheduleExpire(key, numNode)
-    case RefreshDone(key: Id, _: ExpireValue.type) => println("ASDF"); remove(key)
+    case RefreshDone(key: Id, ExpireValue(rValue)) if(expireMap.get(key).get._1 == rValue)=>
+      expireMap -= key
+      remove(key)
   }
 
-  private def scheduleExpire(key: Id, numNode: Int) {
+  private def scheduleExpire(key: Id, numNode: Int) { // TODO need to consider when future nodes are added and adjust the timer accordingly
     def updateExpireMap() {
       expireMap.get(id) match {
-        case Some(prevExpire) => expireMap += (key -> getExpireTime(prevExpire))
-        case None => expireMap += (key -> getExpireTime(refreshStore))
+        case Some((count, _)) => expireMap += key -> (count + 1, getExpireTime(refreshStore))
+        case None => expireMap += key -> (0, getExpireTime(refreshStore))
       }
 
       def getExpireTime(expire: Duration) = expire * (1 / scala.math.exp(numNode.toDouble / kBucketSize))
     }
-    
+
     updateExpireMap()
-    timerRef ! ExpireRemoteStore(key, expireMap.get(key).get)
+    
+    val (count, expireTime) = expireMap.get(key).get
+    
+    timerRef ! ExpireRemoteStore(key, expireTime, ExpireValue(count))
   }
 }
 
@@ -67,7 +72,7 @@ object StoreActor {
   case class Republish(val key: Id, val after: Duration, val value: RepublishValue.type = RepublishValue, val refreshKey: String = "republishStore") extends Refresh
   case object RepublishValue
 
-  case class ExpireRemoteStore(val key: Id, val after: Duration, val value: ExpireValue.type = ExpireValue, val refreshKey: String = "expireRemoteStore") extends Refresh
-  case object ExpireValue
+  case class ExpireRemoteStore(val key: Id, val after: Duration, val value: ExpireValue, val refreshKey: String = "expireRemoteStore") extends Refresh
+  case class ExpireValue(storeCount: Long)
 
 }

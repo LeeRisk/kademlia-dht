@@ -22,8 +22,6 @@ class KadConfigTest extends BaseUnitTest {
 	  
 	  assert(conf.roundTimeOut == (1 second))
 	  assert(conf.requestTimeOut == (2 second))
-	  
-	  assert(conf.id == Id("0000"))
   }
   
   test("fail custom config does not contain the defined properties") {

@@ -106,14 +106,14 @@ class StoreActorTest extends BaseTestKit("StoreSpec") with BaseFixture {
   
       verifyRef ! NumNodesInBetween(Id("1010"), numBetween)
   
-      refreshProbe.expectMsg(ExpireRemoteStore(Id("1010"), expectExpiration))
+      refreshProbe.expectMsg(ExpireRemoteStore(Id("1010"), expectExpiration, ExpireValue(0)))
     }
   }
   
   test("if ExpireValue event received - remove from store") {
     new Fixture {
-      verifyRef ! RefreshDone(Id("1010"), ExpireValue)
-      
+      verifyRef ! NumNodesInBetween(Id("1010"), 0)
+      verifyRef ! RefreshDone(Id("1010"), ExpireValue(0))
       verify(mockStore).remove(Id("1010"))
     }
   }
