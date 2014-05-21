@@ -11,7 +11,6 @@ import akka.util.Timeout
 trait KadConfig {
 	def host: Host
 	def kBucketSize: Int
-	def addressSpace: Int
 	def roundConcurrency: Int
 	def requestTimeOut: FiniteDuration
 	def roundTimeOut: FiniteDuration
@@ -34,8 +33,6 @@ class TypeSafeKadConfig(config: Config) extends KadConfig {
   
   val kBucketSize = config.getInt(s"${namespace}.kbucket-size")
 
-  val addressSpace = config.getInt(s"${namespace}.address-space")
-  
   val roundConcurrency = config.getInt(s"${namespace}.round-concurrency")
   
   val roundTimeOut = FiniteDuration(config.getInt(s"${namespace}.round-timeout-ms"), MILLISECONDS)

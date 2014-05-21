@@ -8,143 +8,148 @@ import akka.actor.{ Actor, Props, ReceiveTimeout }
 import akka.testkit.{ TestActorRef, TestProbe }
 
 import com.tommo.kademlia.protocol.Message._
-
+import scala.concurrent.duration._
 import org.mockito.Matchers._
 import org.mockito.Mockito._
+import org.scalatest.OneInstancePerTest
 
-class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture {
+class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture with OneInstancePerTest {
 
   trait BaseFixture {
     val bucketProbe = TestProbe()
   }
 
   /* Test base class Auth */
-
-  trait AuthFixture extends BaseFixture {
-    val mockAuth = mock[AuthActor]
-
-    when(mockAuth.addToKBucket).thenReturn(true)
-
-    class MockAuthActor extends AuthActor(bucketProbe.ref, mockConfig.requestTimeOut) {
-      override def doInChallenge(msg: Message) = mockAuth.doInChallenge(msg)
-      override def authSuccess(reply: AuthReply) = mockAuth.authSuccess(reply)
-      override val addToKBucket = mockAuth.addToKBucket
-      override def doTimeOut() = { mockAuth.doTimeOut }
+  
+    trait AuthFixture extends BaseFixture {
+      val mockAuth = mock[AuthActor]
+  
+      when(mockAuth.addToKBucket).thenReturn(true)
+  
+      class MockAuthActor extends AuthActor(bucketProbe.ref, mockConfig.requestTimeOut) {
+        override def doInChallenge(msg: Message) = mockAuth.doInChallenge(msg)
+        override def authSuccess(reply: AuthReply) = mockAuth.authSuccess(reply)
+        override val addToKBucket = mockAuth.addToKBucket
+        override def doTimeOut() = { mockAuth.doTimeOut }
+      }
+  
+      def mockAuthReply(ref: TestActorRef[MockAuthActor]) = AuthSenderReply(mockZeroId(4), echoId = ref.underlyingActor.toEchoId)
+  
+      lazy val verifyRef = TestActorRef[MockAuthActor](Props(new MockAuthActor))
     }
-
-    def mockAuthReply(ref: TestActorRef[MockAuthActor]) = AuthSenderReply(mockZeroId(4), echoId = ref.underlyingActor.toEchoId)
-
-    lazy val verifyRef = TestActorRef[MockAuthActor](Props(new MockAuthActor))
-  }
-
-  test("initially invoke authChallenge for when a Request is received") {
-    new AuthFixture {
-      verifyRef ! MockRequest()
-      verify(mockAuth).doInChallenge(MockRequest())
+  
+    test("initially invoke authChallenge for when a Request is received") {
+      new AuthFixture {
+        verifyRef ! MockRequest()
+        verify(mockAuth).doInChallenge(MockRequest())
+      }
     }
-  }
-
-  test("invoke authSuccess if echoId matches toEchoId") {
-    new AuthFixture {
-      verifyRef.underlyingActor.init = true
-
-      val authReply = mockAuthReply(verifyRef)
-      verifyRef ! authReply
-
-      verify(mockAuth).authSuccess(authReply)
+  
+    test("invoke authSuccess if echoId matches toEchoId") {
+      new AuthFixture {
+        verifyRef.underlyingActor.init = true
+  
+        val authReply = mockAuthReply(verifyRef)
+        verifyRef ! authReply
+  
+        verify(mockAuth).authSuccess(authReply)
+      }
     }
-  }
-
-  test("add sender to kBucketActor after confirming authencity and addToKBucket is true") {
-    new AuthFixture {
-      verifyRef.underlyingActor.init = true
-      val msg = Add(ActorNode(self, mockZeroId(4)))
-
-      verifyRef ! mockAuthReply(verifyRef)
-
-      bucketProbe.expectMsg(msg)
+  
+    test("add sender to kBucketActor after confirming authencity and addToKBucket is true") {
+      new AuthFixture {
+        verifyRef.underlyingActor.init = true
+        val msg = Add(ActorNode(self, mockZeroId(4)))
+  
+        verifyRef ! mockAuthReply(verifyRef)
+  
+        bucketProbe.expectMsg(msg)
+      }
     }
-  }
-
-  test("don't add to kBucketActor if addToKBucket is false") {
-    new AuthFixture {
-      when(mockAuth.addToKBucket).thenReturn(false)
-
-      verifyRef.underlyingActor.init = true
-      val msg = Add(ActorNode(self, mockZeroId(4)))
-
-      verifyRef ! mockAuthReply(verifyRef)
-
-      bucketProbe.expectNoMsg
+  
+    test("don't add to kBucketActor if addToKBucket is false") {
+      new AuthFixture {
+        when(mockAuth.addToKBucket).thenReturn(false)
+  
+        verifyRef.underlyingActor.init = true
+        val msg = Add(ActorNode(self, mockZeroId(4)))
+  
+        verifyRef ! mockAuthReply(verifyRef)
+  
+        bucketProbe.expectNoMsg(500 millisecond)
+      }
     }
-  }
-
-  test("save sender of the Request") {
-    new AuthFixture {
-      verifyRef ! MockRequest()
-      awaitCond(verifyRef.underlyingActor.requestor == testActor)
+  
+    test("save sender of the Request") {
+      new AuthFixture {
+        verifyRef ! MockRequest()
+        awaitCond(verifyRef.underlyingActor.requestor == testActor)
+      }
     }
-  }
-
-  test("invokes doTimeout when ReceiveTimeout received") {
-    new AuthFixture {
-      verifyRef ! ReceiveTimeout
-
-      awaitAssert(verify(mockAuth).doTimeOut())
+  
+    test("invokes doTimeout when ReceiveTimeout received") {
+      new AuthFixture {
+        verifyRef ! ReceiveTimeout
+  
+        awaitAssert(verify(mockAuth).doTimeOut())
+      }
     }
-  }
-
-  /* Test SenderAuth */
-
-  trait SenderAuthFixTure extends BaseFixture {
-
-    val nodeProbe = TestProbe()
-    lazy val customData: Option[Any] = None
-    val verifyRef = TestActorRef[SenderAuthActor](Props(new SenderAuthActor(bucketProbe.ref, nodeProbe.ref, true, customData, mockConfig.requestTimeOut)))
-    verifyRef.underlyingActor.requestor = testActor
-  }
-
-  test("on receiving a request forward an AuthSenderRequest to node") {
-    new SenderAuthFixTure {
-      verifyRef ! MockRequest()
-      nodeProbe.expectMsg(AuthSenderRequest(MockRequest(), verifyRef.underlyingActor.toEchoId))
+  
+    /* Test SenderAuth */
+  
+    trait SenderAuthFixTure extends BaseFixture {
+  	val selfNode = TestProbe().ref
+      val nodeProbe = TestProbe()
+      lazy val customData: Option[Any] = None
+      val verifyRef = TestActorRef[SenderAuthActor](Props(new SenderAuthActor(bucketProbe.ref, nodeProbe.ref, true, customData, mockConfig.requestTimeOut, selfNode)))
+      verifyRef.underlyingActor.requestor = testActor
     }
-  }
-
-  test("reply to original sender of Request and send an ack to the receiver") {
-    new SenderAuthFixTure {
-      verifyRef.underlyingActor.id = mockZeroId(4)
-      verifyRef.underlyingActor.init = true
-      verifyRef ! AuthRecieverReply(MockReply(), verifyRef.underlyingActor.toEchoId, 1)
-
-      expectMsg(MockReply())
-      nodeProbe.expectMsg(AuthSenderReply(mockZeroId(4), 1))
+  
+    test("on receiving a request forward an AuthSenderRequest to node") {
+      new SenderAuthFixTure {
+        verifyRef ! MockRequest()
+        nodeProbe.expectMsg(AuthSenderRequest(MockRequest(), verifyRef.underlyingActor.toEchoId))
+        nodeProbe.lastSender shouldBe selfNode
+      }
     }
-  }
-
-  test("reply to original sender CustomReply if there was custom data") {
-    new SenderAuthFixTure {
-      override lazy val customData = Some("custom data")
-      verifyRef.underlyingActor.init = true
-      verifyRef ! AuthRecieverReply(MockReply(), verifyRef.underlyingActor.toEchoId, 1)
-
-      expectMsg(CustomReply(MockReply(), "custom data"))
+  
+    test("reply to original sender of Request and send an ack to the receiver") {
+      new SenderAuthFixTure {
+        verifyRef.underlyingActor.id = mockZeroId(4)
+        verifyRef.underlyingActor.init = true
+        verifyRef ! AuthRecieverReply(MockReply(), verifyRef.underlyingActor.toEchoId, 1)
+  
+        expectMsg(MockReply())
+        nodeProbe.expectMsg(AuthSenderReply(mockZeroId(4), 1))
+        nodeProbe.lastSender shouldBe selfNode
+      }
     }
-  }
-
-  test("if timeout occurred then send RequestTimeout") {
-    new SenderAuthFixTure {
-      override lazy val customData = Some("custom data")
-
-      verifyRef.underlyingActor.request = MockRequest()
-      verifyRef.underlyingActor.doTimeOut()
-
-      expectMsg(RequestTimeout(MockRequest(), "custom data"))
+  
+    test("reply to original sender CustomReply if there was custom data") {
+      new SenderAuthFixTure {
+        override lazy val customData = Some("custom data")
+        verifyRef.underlyingActor.init = true
+        verifyRef ! AuthRecieverReply(MockReply(), verifyRef.underlyingActor.toEchoId, 1)
+  
+        expectMsg(CustomReply(MockReply(), "custom data"))
+      }
     }
-  }
+  
+    test("if timeout occurred then send RequestTimeout") {
+      new SenderAuthFixTure {
+        override lazy val customData = Some("custom data")
+  
+        verifyRef.underlyingActor.request = MockRequest()
+        verifyRef.underlyingActor.doTimeOut()
+  
+        expectMsg(RequestTimeout(MockRequest(), "custom data"))
+      }
+    }
+    
 
   /* Test ReceiverAuth */
   trait ReceiverAuthFixTure extends BaseFixture {
+    println("initig")
     val requestProbe = TestProbe()
     val selfProbe = TestProbe()
 
@@ -153,19 +158,19 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture {
     verifyRef.underlyingActor.requestor = testActor
   }
 
-  test("delegate to requestHandler Actor to handle request before receiving echoId if Request is an immutable one") {
-    new ReceiverAuthFixTure {
-      verifyRef ! AuthSenderRequest(MockRequest(), 1)
-      requestProbe.expectMsg(MockRequest())
+    test("delegate to requestHandler Actor to handle request before receiving echoId if Request is an immutable one") {
+      new ReceiverAuthFixTure {
+        verifyRef ! AuthSenderRequest(MockRequest(), 1)
+        requestProbe.expectMsg(MockRequest())
+      }
     }
-  }
 
   test("delegate to requestHandler Actor to handle request after receiving echoId if Request is a mutable one") {
     new ReceiverAuthFixTure {
       val senderToEchoBack = verifyRef.underlyingActor.toEchoId
 
       verifyRef ! AuthSenderRequest(MockMutableRequest(), 1)
-      requestProbe.expectNoMsg
+      requestProbe.expectNoMsg(500 millisecond)
 
       verifyRef ! AuthSenderReply(mockZeroId(4), senderToEchoBack)
       requestProbe.expectMsg(MockMutableRequest())
@@ -176,6 +181,8 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture {
     new ReceiverAuthFixTure {
       val expectedEcho = 1
       verifyRef.underlyingActor.toEchoBack = expectedEcho
+      println(verifyRef.underlyingActor)
+      println(verifyRef.underlyingActor.toEchoId)
 
       verifyRef ! AuthSenderRequest(MockMutableRequest(), 1)
 
@@ -205,4 +212,5 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture {
       lastSender shouldBe selfProbe.ref
     }
   }
+
 }

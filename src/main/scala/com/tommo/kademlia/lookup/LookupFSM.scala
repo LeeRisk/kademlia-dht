@@ -64,7 +64,7 @@ abstract class LookupFSM(selfId: Id, kclosestRef: ActorRef, reqSender: ActorRef,
 
   when(Finalize) {
     case Event(Start, Result(req, kclosest)) =>
-      req.sender ! returnResultsAs(kclosest)
+      req.sender ! returnResultsAs(req.id, kclosest)
       stop()
   }
 
@@ -104,7 +104,7 @@ abstract class LookupFSM(selfId: Id, kclosestRef: ActorRef, reqSender: ActorRef,
   
   def getRequest(lookupId: Id, k: Int): Request
   
-  def returnResultsAs(kclosest: List[ActorNode]): Any = kclosest
+  def returnResultsAs(id: Id, kclosest: List[ActorNode]): Any = (id, kclosest)
 }
 
 object LookupFSM {

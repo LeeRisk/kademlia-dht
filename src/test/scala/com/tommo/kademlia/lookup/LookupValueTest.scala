@@ -39,7 +39,8 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
   
   test("return result as Left") {
     new Fixture {
-      ref.underlyingActor.returnResultsAs(listOfNodes) shouldBe Left(listOfNodes)
+      val unusedSearchId = Id("1010")
+      ref.underlyingActor.returnResultsAs(unusedSearchId, listOfNodes) shouldBe Left(listOfNodes)
     }
   }
 

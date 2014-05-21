@@ -1,7 +1,7 @@
 package com.tommo.kademlia.lookup
 
 import scala.concurrent.duration.FiniteDuration
-
+import com.tommo.kademlia.protocol.ActorNode
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.protocol.Message.{ KClosestReply, KClosestRequest }
 import LookupFSM.{ QueryNodeData, Lookup }
@@ -20,9 +20,14 @@ class LookupNode(selfId: Id, kBucketActor: ActorRef, reqSender: ActorRef, kBucke
   def remoteReplySF = {
     case Event(reply: KClosestReply, qd: QueryNodeData) => kclosestState(structuralReply(reply), qd)
   }
+
+  override def returnResultsAs(searchId: Id, kclosest: List[ActorNode]) = LookupResult(searchId, kclosest)
+
 }
 
 object LookupNode {
+  case class LookupResult(searchId: Id, kclosest: List[ActorNode])
+
   def structuralReply(reply: KClosestReply) = new {
     val nodes = reply.nodes
     val senderId = reply.sender

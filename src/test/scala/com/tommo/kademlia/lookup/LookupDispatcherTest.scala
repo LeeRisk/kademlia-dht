@@ -4,7 +4,7 @@ import com.tommo.kademlia.routing.KBucketSetActor._
 import akka.actor.{ Props, Actor }
 import com.tommo.kademlia.identity.Id
 import akka.testkit.{ TestActorRef, TestProbe }
-import LookupActor._
+import LookupDispatcher._
 import com.tommo.kademlia.util.RefreshActor._
 import com.tommo.kademlia.util.EventSource._
 import com.tommo.kademlia.BaseFixture
@@ -23,7 +23,7 @@ class LookupDispatcherTest extends BaseTestKit("LookupDispatcher") with BaseFixt
       override def lookupValue() = lookupValueProbe.ref
     }
 
-    val verifyRef = TestActorRef[LookupActor](Props(new LookupActor(kProbe.ref, timerProbe.ref) with MockProvider))
+    val verifyRef = TestActorRef[LookupDispatcher](Props(new LookupDispatcher(kProbe.ref, timerProbe.ref) with MockProvider))
 
     def expectGetRandomIdInSameBucketAs(id: Id) = kProbe.fishForMessage() {
       case GetRandomIdInSameBucketAs(anId) if id == anId => true

@@ -147,7 +147,7 @@ class LookupFSMTest extends BaseTestKit("LookupFSMSpec") with BaseFixture {
       ref.setState(Finalize, result)
       ref ! Start
 
-      expectMsg(result.kClosest)
+      expectMsg((lookupReq.id, result.kClosest))
     }
   }
 }

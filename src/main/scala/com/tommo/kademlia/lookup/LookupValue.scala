@@ -46,7 +46,7 @@ class LookupValue[V](selfId: Id, storeRef: ActorRef, reqSender: ActorRef, kBucke
       }
   }
   
-  override def returnResultsAs(kclosest: List[ActorNode]) = Left(kclosest)
+  override def returnResultsAs(searchId: Id, kclosest: List[ActorNode]) = Left(kclosest)
 
   when(FinalizeValue) {
     case Event(Start, ResultValue(req, values)) =>

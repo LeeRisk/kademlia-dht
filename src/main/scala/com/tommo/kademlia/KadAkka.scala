@@ -10,20 +10,20 @@ class KadAkka(private val actorSystem: ActorSystem = ActorSystem("kadSystem"))(i
 
   protected val kadActor = actorSystem.actorOf(Props(newKadActor(selfId)))
 
-  val selfId = generateId(config.addressSpace)
+  val selfId = generateId(3) // todo
 
   init
 
   protected def init {}
 
   def put(key: Id, value: Any) {
-    require(key.size == selfId.size)
+//    require(key.size == selfId.size)
     
     // put the key pair in the kth closest 
   }
 
   def get(key: Id) {
-    require(key.size == selfId.size)
+//    require(key.size == selfId.size)
 
     // return an option containing the value
   }

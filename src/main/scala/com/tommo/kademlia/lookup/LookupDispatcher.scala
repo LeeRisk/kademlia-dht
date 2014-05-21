@@ -8,15 +8,15 @@ import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.util.EventSource
 import com.tommo.kademlia.KadConfig
 import com.tommo.kademlia.util.RefreshActor._
-import LookupActor._
+import LookupDispatcher._
 
-class LookupActor(kBucketRef: ActorRef, timerRef: ActorRef)(implicit val config: KadConfig) extends Actor {
+class LookupDispatcher(kBucketRef: ActorRef, timerRef: ActorRef)(implicit val config: KadConfig) extends Actor {
   self: Provider =>
 
   import config._
 
   override def preStart() {
-    kBucketRef ! GetNumKBuckets
+	  kBucketRef ! GetNumKBuckets
   }
 
   def receive = {
@@ -30,10 +30,10 @@ class LookupActor(kBucketRef: ActorRef, timerRef: ActorRef)(implicit val config:
   def lookup(id: Id, lookupFn: () => ActorRef = lookupNode) {
     lookupFn() forward id
     kBucketRef ! GetRandomIdInSameBucketAs(id)
-  }
+ }
 }
 
-object LookupActor {
+object LookupDispatcher {
   case class FindKNode(id: Id)
   case class FindKValue(id: Id)
 

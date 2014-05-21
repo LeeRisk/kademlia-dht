@@ -16,8 +16,6 @@ class KadConfigTest extends BaseUnitTest {
 	  assert(conf.refreshStaleKBucket == (600 second))
 	  assert(conf.refreshStore == (800 second))
 	  
-	  assert(conf.addressSpace == 160)
-	  
 	  assert(conf.roundConcurrency == 2)
 	  
 	  assert(conf.roundTimeOut == (1 second))
