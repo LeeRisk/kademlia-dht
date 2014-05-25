@@ -22,12 +22,14 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
   /* Test base class Auth */
   
     trait AuthFixture extends BaseFixture {
-      val mockAuth = mock[AuthActor]
+      
+      
+      val mockAuth = mock[AuthActor[MockRequest]]
   
       when(mockAuth.addToKBucket).thenReturn(true)
   
-      class MockAuthActor extends AuthActor(bucketProbe.ref, mockConfig.requestTimeOut) {
-        override def doInChallenge(msg: Message) = mockAuth.doInChallenge(msg)
+      class MockAuthActor extends AuthActor[MockRequest](bucketProbe.ref, mockConfig.requestTimeOut) {
+        override def doInChallenge(msg: MockRequest) = mockAuth.doInChallenge(msg)
         override def authSuccess(reply: AuthReply) = mockAuth.authSuccess(reply)
         override val addToKBucket = mockAuth.addToKBucket
         override def doTimeOut() = { mockAuth.doTimeOut }
@@ -101,7 +103,7 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
   	val selfNode = TestProbe().ref
       val nodeProbe = TestProbe()
       lazy val customData: Option[Any] = None
-      val verifyRef = TestActorRef[SenderAuthActor](Props(new SenderAuthActor(bucketProbe.ref, nodeProbe.ref, true, customData, mockConfig.requestTimeOut, selfNode)))
+      val verifyRef = TestActorRef[SenderAuthActor](Props(new SenderAuthActor(id, bucketProbe.ref, nodeProbe.ref, true, customData, mockConfig.requestTimeOut, selfNode)))
       verifyRef.underlyingActor.requestor = testActor
     }
   
@@ -115,9 +117,8 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
   
     test("reply to original sender of Request and send an ack to the receiver") {
       new SenderAuthFixTure {
-        verifyRef.underlyingActor.id = mockZeroId(4)
         verifyRef.underlyingActor.init = true
-        verifyRef ! AuthRecieverReply(MockReply(), verifyRef.underlyingActor.toEchoId, 1)
+        verifyRef ! AuthRecieverReply(MockReply(), verifyRef.underlyingActor.toEchoId, 1, id)
   
         expectMsg(MockReply())
         nodeProbe.expectMsg(AuthSenderReply(mockZeroId(4), 1))
@@ -129,7 +130,7 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
       new SenderAuthFixTure {
         override lazy val customData = Some("custom data")
         verifyRef.underlyingActor.init = true
-        verifyRef ! AuthRecieverReply(MockReply(), verifyRef.underlyingActor.toEchoId, 1)
+        verifyRef ! AuthRecieverReply(MockReply(), verifyRef.underlyingActor.toEchoId, 1, id)
   
         expectMsg(CustomReply(MockReply(), "custom data"))
       }
@@ -139,7 +140,7 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
       new SenderAuthFixTure {
         override lazy val customData = Some("custom data")
   
-        verifyRef.underlyingActor.request = MockRequest()
+        verifyRef.underlyingActor.request = Some(MockRequest())
         verifyRef.underlyingActor.doTimeOut()
   
         expectMsg(RequestTimeout(MockRequest(), "custom data"))
@@ -153,7 +154,7 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
     val requestProbe = TestProbe()
     val selfProbe = TestProbe()
 
-    val verifyRef = TestActorRef[ReceiverAuthActor](Props(new ReceiverAuthActor(mockZeroId(4), bucketProbe.ref, requestProbe.ref, selfProbe.ref, mockConfig.requestTimeOut)))
+    val verifyRef = TestActorRef[ReceiverAuthActor](Props(new ReceiverAuthActor(id, bucketProbe.ref, requestProbe.ref, selfProbe.ref, mockConfig.requestTimeOut)))
 
     verifyRef.underlyingActor.requestor = testActor
   }
@@ -181,12 +182,10 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
     new ReceiverAuthFixTure {
       val expectedEcho = 1
       verifyRef.underlyingActor.toEchoBack = expectedEcho
-      println(verifyRef.underlyingActor)
-      println(verifyRef.underlyingActor.toEchoId)
 
       verifyRef ! AuthSenderRequest(MockMutableRequest(), 1)
 
-      expectMsg(AuthRecieverReply(AckReply(mockZeroId(4)), expectedEcho, verifyRef.underlyingActor.toEchoId))
+      expectMsg(AuthRecieverReply(AckReply, expectedEcho, verifyRef.underlyingActor.toEchoId, id))
     }
   }
 
@@ -198,7 +197,7 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
 
       verifyRef ! MockReply()
 
-      expectMsg(AuthRecieverReply(MockReply(), expectedEcho, verifyRef.underlyingActor.toEchoId))
+      expectMsg(AuthRecieverReply(MockReply(), expectedEcho, verifyRef.underlyingActor.toEchoId, id))
     }
   }
 

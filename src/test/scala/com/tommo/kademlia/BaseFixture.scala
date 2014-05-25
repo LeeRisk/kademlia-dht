@@ -14,10 +14,12 @@ trait BaseFixture {
     val kBucketSize = 4
     val addressSpace = 4
     val roundConcurrency = 2
-    val refreshStaleKBucket = 1 seconds
-    val refreshStore = 24 hours
+    val refreshStaleKBucket = 1 second
+    val republishOriginal = 24 hours
     val roundTimeOut = 10 seconds
     val requestTimeOut = 10 seconds
+    val republishRemote = 1 hour
+    val expireRemote = 10 hours
   }
 
   implicit val mockConfig = new TestKadConfig
@@ -28,8 +30,7 @@ trait BaseFixture {
   def mockZeroId(size: Int) = Id((for (i <- 1 to size) yield ('0'))(collection.breakOut))
 
   def aRandomId = Id(Random.nextInt.toBinaryString)
-  
+
   def aRandomId(size: Int) = Id(Random.nextInt.toBinaryString.take(size))
-  
 
 }

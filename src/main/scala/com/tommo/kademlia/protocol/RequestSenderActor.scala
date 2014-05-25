@@ -3,15 +3,16 @@ package com.tommo.kademlia.protocol
 
 import akka.actor.{ Actor, ActorRef, Props }
 import scala.concurrent.duration.Duration
+import com.tommo.kademlia.identity.Id
 
-class RequestSenderActor(kBucketActor: ActorRef, timeout: Duration, selfNode: ActorRef) extends Actor {
+class RequestSenderActor(selfId: Id, kBucketActor: ActorRef, timeout: Duration, selfNode: ActorRef) extends Actor {
   this: AuthActor.Provider =>
 
   import RequestSenderActor._
 
   def receive = {
     case NodeRequest(node, req, discoverNewNode, customData) =>
-      val autoRef = context.actorOf(Props(authSender(kBucketActor, node, discoverNewNode, customData, timeout, selfNode)))
+      val autoRef = context.actorOf(Props(authSender(selfId, kBucketActor, node, discoverNewNode, customData, timeout, selfNode)))
       autoRef forward req
   }
 

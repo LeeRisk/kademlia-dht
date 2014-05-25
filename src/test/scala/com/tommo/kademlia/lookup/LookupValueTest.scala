@@ -3,44 +3,57 @@ package com.tommo.kademlia.lookup
 import akka.testkit.{ TestFSMRef, TestProbe }
 import akka.actor.FSM._
 import scala.collection.immutable.TreeMap
+import scala.concurrent.duration._
 
-import LookupFSM._
 import LookupValue._
+import LookupNode._
 import com.tommo.kademlia.BaseFixture
 import com.tommo.kademlia.BaseTestKit
 import com.tommo.kademlia.protocol.Message.{ FindValueReply, FindValueRequest, StoreRequest }
 import com.tommo.kademlia.protocol.ActorNode
 import com.tommo.kademlia.protocol.RequestSenderActor._
 import com.tommo.kademlia.identity.Id
+import com.tommo.kademlia.store.StoreActor._
+import com.tommo.kademlia.protocol.Message._
 
 class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
   class Fixture extends LookupFixture(LookupValueTest.this) {
     import mockConfig._
 
     val someRef = TestProbe().ref
+    
+    val storeProbe = TestProbe()
 
-    val ref = TestFSMRef(new LookupValue[Int](id, kClosestProbe.ref, reqSendProbe.ref, kBucketSize, roundConcurrency, roundTimeOut))
+    val ref = TestFSMRef(new LookupValue[Int](storeProbe.ref, kClosestProbe.ref, reqSendProbe.ref, kBucketSize, roundConcurrency, roundTimeOut))
     val listOfNodes = ActorNode(someRef, aRandomId(kBucketSize)) :: ActorNode(someRef, aRandomId(kBucketSize)) :: Nil
   }
 
   test("return FindValueRequest") {
     new Fixture {
-      ref.underlyingActor.getRequest(mockZeroId(4), 4) shouldBe FindValueRequest(id, mockZeroId(4), 4)
+      val searchId = aRandomId
+      ref.underlyingActor.remoteKClosest(searchId, 4) shouldBe FindValueRequest(searchId, 4)
+    }
+  }
+  
+  test("query local store for value first") {
+    new Fixture {
+      val searchId = aRandomId
+      ref ! FindValue(searchId)
+      storeProbe.expectMsg(Get(searchId))
     }
   }
   
   test("if local store returns values go to finalize") {
     new Fixture {
-      ref.setState(WaitForLocalKclosest, lookupReq)
-      ref ! FindValueReply(mockZeroId(4), Right(Set(1, 2, 3)))
+      ref.setState(Initial, lookupReq)
+      ref ! GetResult(GetResult(3))
       awaitAssert(ref.stateName shouldBe FinalizeValue)
     }    
   }
   
-  test("return result as Left") {
+  test("return result as Result(Left(value))") {
     new Fixture {
-      val unusedSearchId = Id("1010")
-      ref.underlyingActor.returnResultsAs(unusedSearchId, listOfNodes) shouldBe Left(listOfNodes)
+      ref.underlyingActor.returnResultsAs(aRandomId, listOfNodes) shouldBe LookupValue.Result(Left(listOfNodes))
     }
   }
 
@@ -50,12 +63,12 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
 
       ref.setState(QueryNode, qd)
 
-      ref ! FindValueReply(qd.toQuery.head._1, Right(Set(1, 2, 3)))
+      ref ! FindValueReply(Right(RemoteValue(1, 1 second)))
 
       awaitAssert(ref.stateName shouldBe FinalizeValue)
     }
   }
-
+  
   test("if a value reply is received make store request to closest node that did not return the value") {
     new Fixture {
       val lookReq = Lookup(Id("1111"), testActor)
@@ -64,43 +77,12 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
       
       val qd = QueryNodeData(lookReq, Map(), TreeMap(s1, s2)(new lookReq.id.SelfOrder), Map(responded))
       ref.setState(QueryNode, qd)
+      
+      val reply = FindValueReply(Right(RemoteValue(1, 1 second)))
 
-      ref ! FindValueReply(responded._1, Right(Set(1, 2, 3)))
+      ref ! reply
 
-      reqSendProbe.expectMsg(NodeRequest(s1._2.ref, StoreRequest(mockZeroId(4), qd.req.id, Set(1, 2, 3))))
-    }
-  }
-
-  test("if a reply is received and it is a kclosest go to kClosestState()") {
-    new Fixture {
-      import mockConfig._
-
-      var invoked = false
-
-      override val ref = TestFSMRef(new LookupValue[Int](id, kClosestProbe.ref, reqSendProbe.ref, kBucketSize, roundConcurrency, roundTimeOut) {
-        override def kclosestState(reply: { val nodes: List[ActorNode]; val senderId: Id }, qd: QueryNodeData): State = { invoked = true; super.kclosestState(reply, qd) }
-      })
-
-      val qd = queryNodeDataDefault(1)
-      ref.setState(QueryNode, qd)
-      ref.cancelTimer("startQueryNode")
-
-      ref ! Start
-
-      ref ! FindValueReply(qd.toQuery.head._1, Left(listOfNodes))
-
-      awaitAssert(invoked shouldBe true)
-    }
-  }
-
-  test("when FinalizeValue return as Right(values)") {
-    new Fixture {
-      val result = ResultValue(lookupReq, Set(1, 2, 3))
-      ref.setState(FinalizeValue, result)
-
-      ref ! Start
-
-      expectMsg(Right(result.values))
+      reqSendProbe.expectMsg(NodeRequest(s1._2.ref, StoreRequest(qd.req.id, reply.result.right.get)))
     }
   }
 }

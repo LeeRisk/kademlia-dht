@@ -1,6 +1,6 @@
 package com.tommo.kademlia.lookup
 
-import LookupFSM._
+import LookupNode._
 import akka.testkit.{ TestFSMRef, TestProbe }
 import akka.actor.FSM._
 import scala.collection.immutable.TreeMap
@@ -13,17 +13,13 @@ import com.tommo.kademlia.BaseFixture
 import com.tommo.kademlia.BaseTestKit
 import com.tommo.kademlia.protocol.ActorNode
 
-class LookupFSMTest extends BaseTestKit("LookupFSMSpec") with BaseFixture {
+class LookupNodeTest extends BaseTestKit("LookupNodeSpec") with BaseFixture {
 
-  class Fixture extends LookupFixture(LookupFSMTest.this) {
+  class Fixture extends LookupFixture(LookupNodeTest.this) {
     import mockConfig._
     val mockTimeOut = mockConfig.roundTimeOut
 
-    lazy val ref = TestFSMRef(new LookupFSM(id, kClosestProbe.ref, reqSendProbe.ref, kBucketSize, roundConcurrency, mockTimeOut) {
-      def getRequest(lookupId: Id, k: Int) = KClosestRequest(id, lookupId, k)
-      def remoteReplySF = { case Event(KClosestReply(sender, replyNodes), qd: QueryNodeData) => kclosestState(new { val nodes = replyNodes; val senderId = sender }, qd) }
-      def localKClosestReq = { case Event(KClosestReply(_, localKnown), req: Lookup) => localKclosestState(new { val nodes = localKnown }, req) }
-    })
+    lazy val ref = TestFSMRef(new LookupNode(kClosestProbe.ref, reqSendProbe.ref, kBucketSize, roundConcurrency, mockTimeOut))
 
     lazy val underlyingFsm = ref.underlyingActor
   }
@@ -37,8 +33,8 @@ class LookupFSMTest extends BaseTestKit("LookupFSMSpec") with BaseFixture {
 
   test("send to the KCloseset Actor the id to get the k-closest locally known nodes") {
     new Fixture {
-      ref ! toFindId
-      kClosestProbe.expectMsg(KClosestRequest(id, toFindId, mockConfig.kBucketSize))
+      ref ! FindKClosest(toFindId)
+      kClosestProbe.expectMsg(KClosestRequest(toFindId, mockConfig.kBucketSize))
 
       ref.stateName should equal(WaitForLocalKclosest)
       ref.stateData should equal(lookupReq)
@@ -60,8 +56,8 @@ class LookupFSMTest extends BaseTestKit("LookupFSMSpec") with BaseFixture {
       ref.setState(WaitForLocalKclosest, lookupReq)
       ref.setState(QueryNode, queryNodeDataDefault())
 
-      reqSendProbe.expectMsgAllOf(NodeRequest(testActor, KClosestRequest(id, toFindId, mockConfig.kBucketSize)),
-        NodeRequest(testActor, KClosestRequest(id, toFindId, mockConfig.kBucketSize)))
+      reqSendProbe.expectMsgAllOf(NodeRequest(testActor, KClosestRequest(toFindId, mockConfig.kBucketSize)),
+        NodeRequest(testActor, KClosestRequest(toFindId, mockConfig.kBucketSize)))
     }
   }
 
@@ -142,12 +138,12 @@ class LookupFSMTest extends BaseTestKit("LookupFSMSpec") with BaseFixture {
 
   test("send the k-closest back to sender as list") {
     new Fixture {
-      val result = Result(lookupReq, ActorNode(testActor, aRandomId) :: ActorNode(testActor, aRandomId) :: Nil)
+      val result = FinalizeData(lookupReq, ActorNode(testActor, aRandomId) :: ActorNode(testActor, aRandomId) :: Nil)
 
       ref.setState(Finalize, result)
       ref ! Start
 
-      expectMsg((lookupReq.id, result.kClosest))
+      expectMsg(Result(lookupReq.id, result.kClosest))
     }
   }
 }

@@ -4,6 +4,7 @@ import scala.concurrent.duration._
 import scala.collection.mutable.Map
 import akka.actor.{ Actor, ActorRef }
 
+import com.tommo.kademlia.misc.time.Clock
 import com.tommo.kademlia.util.EventSource._
 import com.tommo.kademlia.routing.KBucketSetActor._
 import com.tommo.kademlia.identity.Id
@@ -12,11 +13,10 @@ import com.tommo.kademlia.protocol.RequestSenderActor._
 import com.tommo.kademlia.protocol.Message._
 import com.tommo.kademlia.util.RefreshActor._
 import com.tommo.kademlia.KadConfig
-import com.tommo.kademlia.lookup.LookupDispatcher.FindKNode
-import com.tommo.kademlia.lookup.LookupNode.LookupResult
+import com.tommo.kademlia.lookup._
 
-class StoreActor[V](id: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef, timerRef: ActorRef, lookupRef: ActorRef)(implicit val config: KadConfig) extends Actor {
-  this: Store[V] =>
+class StoreActor[V](selfId: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef, timerRef: ActorRef, lookupRef: ActorRef)(implicit val config: KadConfig) extends Actor {
+  this: Store[V] with Clock =>
 
   import StoreActor._
   import config._
@@ -36,32 +36,34 @@ class StoreActor[V](id: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef, timerR
     case insertMsg: Insert[V] =>
       import insertMsg._
       insert(key, value)
-      lookupRef ! FindKNode(key)
-    
-    case LookupResult(key, nodes) => 
-      val toStore = get(key).get
-      val storeReq =  nodes.map(n => NodeRequest(n.ref, StoreRequest(id, key, StoreRequest(id, key, toStore))))
-      storeReq.foreach(reqSenderRef ! _)
-      timerRef ! Republish(key, refreshStore)
-    
+      lookupRef ! LookupNode.FindKClosest(key)
+
+    case LookupNode.Result(key, nodes) =>
+      get(key) match {
+        case Some(toStore) =>
+          nodes.map(n => NodeRequest(n.ref, StoreRequest(key, null))).foreach(reqSenderRef ! _)
+          timerRef ! Republish(key, republishOriginal)
+        case None =>
+      }
+
     case Add(newNode) => // listener event from kbucket that signals a new node was added
-      val toReplicate = findCloserThan(id, newNode.id).map { case (key, value) => NodeRequest(newNode.ref, StoreRequest(id, key, value), false) }
+      val toReplicate = findCloserThan(selfId, newNode.id).map { case (key, value) => NodeRequest(newNode.ref, StoreRequest(key, null), false) }
       toReplicate.foreach(reqSenderRef ! _)
-    
+
     case storeReq: StoreRequest[V] =>
       import storeReq._
-      insert(key, value)
+      insert(key, toStore.value)
       kBucketRef ! GetNumNodesInBetween(key)
-    
+
     case NumNodesInBetween(key, numNode) =>
       scheduleExpire(key, numNode)
-      
+
     case RefreshDone(key: Id, ExpireValue(rValue)) if (expireMap.get(key).get == rValue) =>
       expireMap -= key
       remove(key)
-      
-    case RefreshDone(key: Id, RepublishValue) => 
-      lookupRef ! FindKNode(key)
+
+    case RefreshDone(key: Id, RepublishValue) =>
+      lookupRef ! LookupNode.FindKClosest(key)
   }
 
   private def scheduleExpire(key: Id, numNode: Int) { // TODO need to consider when future nodes are added and adjust the timer accordingly
@@ -75,12 +77,14 @@ class StoreActor[V](id: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef, timerR
     def getExpireTime(expire: Duration) = expire * (1 / scala.math.exp(numNode.toDouble / kBucketSize))
 
     updateExpireMap()
-    timerRef ! ExpireRemoteStore(key, getExpireTime(refreshStore), ExpireValue(expireMap.get(key).get))
+    timerRef ! ExpireRemoteStore(key, getExpireTime(expireRemote), ExpireValue(expireMap.get(key).get))
   }
 }
 
 object StoreActor {
   case class Insert[V](key: Id, value: V)
+  case class Get(key: Id)
+  case class GetResult[V](value: Option[V])
 
   case class Republish(val key: Id, val after: Duration, val value: RepublishValue.type = RepublishValue, val refreshKey: String = "republishStore") extends Refresh
   case object RepublishValue

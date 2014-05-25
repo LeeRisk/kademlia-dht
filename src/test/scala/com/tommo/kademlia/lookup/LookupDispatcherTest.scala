@@ -73,7 +73,7 @@ class LookupDispatcherTest extends BaseTestKit("LookupDispatcher") with BaseFixt
 
   test("on value lookup -> invoke value producer") {
     new Fixture {
-      verifyRef ! FindKValue(Id("1010"))
+      verifyRef ! LookupValue.FindValue(Id("1010"))
       lookupValueProbe.expectMsg(Id("1010"))
       expectGetRandomIdInSameBucketAs(Id("1010"))
     }
@@ -81,7 +81,7 @@ class LookupDispatcherTest extends BaseTestKit("LookupDispatcher") with BaseFixt
 
   test("on nook lookup -> invoke node producer") {
     new Fixture {
-      verifyRef ! FindKNode(Id("1010"))
+      verifyRef ! LookupNode.FindKClosest(Id("1010"))
       lookupNodeProbe.expectMsg(Id("1010"))
       expectGetRandomIdInSameBucketAs(Id("1010"))
     }

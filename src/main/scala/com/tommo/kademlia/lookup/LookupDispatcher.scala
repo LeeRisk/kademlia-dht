@@ -23,8 +23,8 @@ class LookupDispatcher(kBucketRef: ActorRef, timerRef: ActorRef)(implicit val co
     case NumKBuckets(bucketCount) => kBucketRef ! GetRandomId((0 until bucketCount).toList) 
     case RandomId(randIds) => randIds.foreach(r => timerRef ! RefreshBucketTimer(r._1, r._2, refreshStaleKBucket))
     case RefreshDone(_, id: Id) => lookup(id)
-    case FindKNode(id: Id) => lookup(id)
-    case FindKValue(id: Id) => lookup(id, lookupValue)
+    case LookupNode.FindKClosest(id: Id) => lookup(id)
+    case LookupValue.FindValue(id: Id) => lookup(id, lookupValue)
   }
 
   def lookup(id: Id, lookupFn: () => ActorRef = lookupNode) {
@@ -34,9 +34,6 @@ class LookupDispatcher(kBucketRef: ActorRef, timerRef: ActorRef)(implicit val co
 }
 
 object LookupDispatcher {
-  case class FindKNode(id: Id)
-  case class FindKValue(id: Id)
-
   case class RefreshBucketTimer(val key: Int, val value: Id, val after: FiniteDuration, val refreshKey: String = "refreshBucket") extends Refresh
 
   trait Provider {

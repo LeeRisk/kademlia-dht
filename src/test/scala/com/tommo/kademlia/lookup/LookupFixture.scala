@@ -5,7 +5,7 @@ import scala.collection.immutable.TreeMap
 
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.{ BaseFixture, BaseTestKit }
-import LookupFSM._
+import LookupNode._
 
 abstract class LookupFixture(testKit: BaseTestKit) extends BaseFixture {
   import mockConfig._

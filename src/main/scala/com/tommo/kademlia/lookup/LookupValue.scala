@@ -6,51 +6,51 @@ import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.protocol.Message.{ FindValueReply, FindValueRequest, StoreRequest }
 import com.tommo.kademlia.protocol.ActorNode
 import com.tommo.kademlia.protocol.RequestSenderActor._
-import LookupFSM._
+import com.tommo.kademlia.store.StoreActor._
+import LookupNode._
 import LookupValue._
 
 import akka.actor.ActorRef
 
-class LookupValue[V](selfId: Id, storeRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration)
-  extends LookupFSM(selfId, storeRef, reqSender, kBucketSize, alpha, roundTimeOut) {
+class LookupValue[V](storeRef: ActorRef, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration)
+  extends LookupNode(kBucketRef, reqSender, kBucketSize, alpha, roundTimeOut) {
 
-  def getRequest(lookupId: Id, k: Int) = FindValueRequest(selfId, lookupId, k)
+  override def remoteKClosest(lookupId: Id, k: Int) = FindValueRequest(lookupId, k)
 
-  def remoteReplySF = {
+  when(Initial){
+    case Event(req @ FindValue(searchId), _) =>
+      storeRef ! Get(searchId)
+      stay using Lookup(searchId, sender)
+    case Event(res: GetResult[V], req: Lookup) => 
+      res.value match {
+        case Some(v) => goto(FinalizeValue) using FinalizeValueData(req, v)
+        case None => 
+          self.tell(FindKClosest(req.id), req.sender)
+          stay using req
+      }
+  } orElse queryKbucketSF
+
+  override def remoteReplySF = {
     case Event(reply: FindValueReply[V], qd: QueryNodeData) =>
       reply.result match {
-        case Left(knodes) =>
-          kclosestState(new {
-            val nodes = knodes
-            val senderId = reply.sender
-          }, qd)
-        case Right(values) => 
+        case Left(kclosest) => kclosestState(kclosest, qd)
+        case Right(remoteValue) =>
           val toSendRef = qd.seen.filter(Function.tupled((id, node) => node.respond)).headOption
-          
+
           toSendRef match {
-            case Some((id, nq)) => reqSender ! NodeRequest(nq.ref, StoreRequest(selfId, qd.req.id, values))
+            case Some((id, nq)) => reqSender ! NodeRequest(nq.ref, StoreRequest(qd.req.id, remoteValue))
             case _ =>
           }
-          
-          goto(FinalizeValue) using ResultValue(qd.req, values)
+
+          goto(FinalizeValue) using FinalizeValueData(qd.req, remoteValue.value)
       }
   }
 
-  def localKClosestReq = {
-    case Event(FindValueReply(_, result), req: Lookup) =>
-      result match {
-        case Left(kclosest) => localKclosestState(new {
-          val nodes = kclosest
-        }, req)
-        case Right(values) => goto(FinalizeValue) using ResultValue(req, values)
-      }
-  }
-  
-  override def returnResultsAs(searchId: Id, kclosest: List[ActorNode]) = Left(kclosest)
+  override def returnResultsAs(searchId: Id, kclosest: List[ActorNode]) = LookupValue.Result(Left(kclosest))
 
   when(FinalizeValue) {
-    case Event(Start, ResultValue(req, values)) =>
-      req.sender ! Right(values)
+    case Event(Start, FinalizeValueData(req, value)) =>
+      req.sender ! LookupValue.Result(Right(value))
       stop()
   }
 
@@ -60,6 +60,9 @@ class LookupValue[V](selfId: Id, storeRef: ActorRef, reqSender: ActorRef, kBucke
 }
 
 object LookupValue {
+  case class FindValue(searchId: Id) 
+  case class Result[V](result: Either[List[ActorNode], V])
+
   case object FinalizeValue extends State
-  case class ResultValue[V](req: Lookup, values: Set[V]) extends Data
+  case class FinalizeValueData[V](req: Lookup, value: V) extends Data
 }

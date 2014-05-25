@@ -14,12 +14,16 @@ class KadConfigTest extends BaseUnitTest {
 
 	  assert(conf.kBucketSize == 10)
 	  assert(conf.refreshStaleKBucket == (600 second))
-	  assert(conf.refreshStore == (800 second))
+	  assert(conf.republishOriginal == (800 second))
 	  
 	  assert(conf.roundConcurrency == 2)
 	  
 	  assert(conf.roundTimeOut == (1 second))
-	  assert(conf.requestTimeOut == (2 second))
+	  assert(conf.requestTimeOut == (300 milliseconds))
+	  
+	  assert(conf.expireRemote == (700 seconds))
+	  assert(conf.republishRemote == (600 seconds))
+	  
   }
   
   test("fail custom config does not contain the defined properties") {

@@ -27,11 +27,11 @@ class KBucketSetActor(id: Id, requestSender: ActorRef)(implicit kadConfig: KadCo
       sender ! RandomId((index, kSet.getRandomId(index)) :: Nil)
     case GetRandomId(buckets) => sender ! RandomId(buckets.map(b => (b, kSet.getRandomId(b))))
     case GetNumKBuckets => sender ! NumKBuckets(kSet.addressSize)
-    case KClosestRequest(_, searchId, k) => sender ! KClosestReply(id, kSet.getClosestInOrder(k, searchId))
+    case KClosestRequest(searchId, k) => sender ! KClosestReply(id, kSet.getClosestInOrder(k, searchId))
     case addReq @ Add(node) if node.id != id =>
       doAdd(node)
       sendEvent(addReq)
-    case RequestTimeout(PingRequest(_), Some((dead: ActorNode, toAdd: ActorNode))) if (kSet.contains(dead)) =>
+    case RequestTimeout(PingRequest, Some((dead: ActorNode, toAdd: ActorNode))) if (kSet.contains(dead)) =>
       kSet.remove(dead)
       kSet.add(toAdd)
   }
@@ -41,7 +41,7 @@ class KBucketSetActor(id: Id, requestSender: ActorRef)(implicit kadConfig: KadCo
       kSet.add(toAdd)
     } else {
       val lowestOrder = kSet.getLowestOrder(toAdd)
-      requestSender ! NodeRequest(lowestOrder.ref, PingRequest(lowestOrder.id), customData = (lowestOrder, toAdd))
+      requestSender ! NodeRequest(lowestOrder.ref, PingRequest, customData = (lowestOrder, toAdd))
     }
   }
 }
@@ -59,4 +59,3 @@ object KBucketSetActor {
   case class GetNumNodesInBetween(id: Id)
   case class NumNodesInBetween(id: Id, numNode: Int)
 }
-

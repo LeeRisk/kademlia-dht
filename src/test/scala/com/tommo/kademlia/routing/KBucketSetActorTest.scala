@@ -35,7 +35,7 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
 
   test("return the KClosest to an id by invoking getClosestInOrder method") {
     new Fixture {
-      verifyRef ! KClosestRequest(id, mockZeroId(4), mockConfig.kBucketSize)
+      verifyRef ! KClosestRequest(mockZeroId(4), mockConfig.kBucketSize)
 
       expectMsg(KClosestReply(id, kClosest))
 
@@ -61,15 +61,15 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
 
       reqSendProbe.setAutoPilot(new TestActor.AutoPilot {
         def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = msg match {
-          case NodeRequest(lowest.ref, PingRequest(lowest.id), _, _) =>
-            sender ! AckReply(lowest.id); TestActor.NoAutoPilot
+          case NodeRequest(lowest.ref, PingRequest, _, _) =>
+            sender ! AckReply; TestActor.NoAutoPilot
           case _ => TestActor.NoAutoPilot
         }
       })
 
       verifyRef ! Add(toAdd)
 
-      reqSendProbe.expectMsg(NodeRequest(lowest.ref, PingRequest(lowest.id), customData = (lowest, toAdd)))
+      reqSendProbe.expectMsg(NodeRequest(lowest.ref, PingRequest, customData = (lowest, toAdd)))
 
       verify(kSet, never()).add(any())
     }
@@ -85,8 +85,8 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
 
       reqSendProbe.setAutoPilot(new TestActor.AutoPilot {
         def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = msg match {
-          case NodeRequest(lowest.ref, PingRequest(lowest.id), _, _) =>
-            sender ! RequestTimeout(PingRequest(lowest.id), customData = (lowest, toAdd)); 
+          case NodeRequest(lowest.ref, PingRequest, _, _) =>
+            sender ! RequestTimeout(PingRequest, customData = (lowest, toAdd)); 
             TestActor.NoAutoPilot
           case _ => TestActor.NoAutoPilot
         }
@@ -96,7 +96,7 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
 
       verifyRef ! Add(toAdd)
 
-      reqSendProbe.expectMsg(NodeRequest(lowest.ref, PingRequest(lowest.id),  customData = (lowest, toAdd)))
+      reqSendProbe.expectMsg(NodeRequest(lowest.ref, PingRequest,  customData = (lowest, toAdd)))
 
       awaitAssert(verify(kSet).add(toAdd))
     }

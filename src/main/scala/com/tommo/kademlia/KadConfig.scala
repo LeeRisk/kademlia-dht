@@ -15,7 +15,9 @@ trait KadConfig {
 	def requestTimeOut: FiniteDuration
 	def roundTimeOut: FiniteDuration
 	def refreshStaleKBucket: FiniteDuration
-	def refreshStore: FiniteDuration
+	def republishOriginal: FiniteDuration
+	def republishRemote: FiniteDuration
+	def expireRemote: FiniteDuration
 }
 
 class TypeSafeKadConfig(config: Config) extends KadConfig {
@@ -25,19 +27,21 @@ class TypeSafeKadConfig(config: Config) extends KadConfig {
 
   val host = Host(config.getString(s"${namespace}.host"), config.getInt(s"${namespace}.port"))
   
-  val requestTimeOut = FiniteDuration(config.getInt(s"${namespace}.request-timeout-ms"), MILLISECONDS)
+  val requestTimeOut = FiniteDuration(config.getInt(s"${namespace}.request-timeout-milliseconds"), MILLISECONDS)
   
   val refreshStaleKBucket = FiniteDuration(config.getInt(s"${namespace}.kbucket-stale-seconds"), SECONDS)
 
-  val refreshStore = FiniteDuration(config.getInt(s"${namespace}.store-refresh-seconds"), SECONDS)
+  val republishOriginal = FiniteDuration(config.getInt(s"${namespace}.republish-original-seconds"), SECONDS)
+
+  val republishRemote = FiniteDuration(config.getInt(s"${namespace}.republish-remote-seconds"), SECONDS)
+
+  val expireRemote = FiniteDuration(config.getInt(s"${namespace}.expire-remote-seconds"), SECONDS)
   
   val kBucketSize = config.getInt(s"${namespace}.kbucket-size")
 
   val roundConcurrency = config.getInt(s"${namespace}.round-concurrency")
   
   val roundTimeOut = FiniteDuration(config.getInt(s"${namespace}.round-timeout-ms"), MILLISECONDS)
-  
-  val id = Id(config.getString(s"${namespace}.id")) // TODO use provider to get id
 }
 
 object TypeSafeKadConfig {
