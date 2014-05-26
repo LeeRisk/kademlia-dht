@@ -10,6 +10,7 @@ import akka.actor._
 trait BaseFixture {
 
   class TestKadConfig extends KadConfig {
+    val name = "testKadSystem"
     val host = mockHost // don't change settings as it effects other tests; instead extend
     val kBucketSize = 4
     val addressSpace = 4

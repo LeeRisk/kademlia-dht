@@ -6,7 +6,7 @@ import scala.concurrent.duration.Duration
 import akka.actor.{ Actor, ActorRef, ActorLogging, ReceiveTimeout }
 
 import Message._
-import RequestSenderActor._
+import RequestDispatcher._
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.routing.KBucketSetActor.Add
 
@@ -131,6 +131,9 @@ private[protocol] class ReceiverAuthActor(selfNode: ActorNode, kBucketActor: Act
 
 object AuthActor {
   trait Provider {
+    def authReceiver(selfNode: ActorNode, kbucketSetRef: ActorRef, requestHandler: ActorRef, timeout: Duration): Actor =
+      new ReceiverAuthActor(selfNode, kbucketSetRef, requestHandler, timeout)
+    
     def authSender(selfNode: ActorNode, kBucketActor: ActorRef, node: ActorRef, 
         discoverNewNode: Boolean, customData: Option[Any], timeout: Duration): Actor = new SenderAuthActor(selfNode, kBucketActor, node, discoverNewNode, customData, timeout)
   }

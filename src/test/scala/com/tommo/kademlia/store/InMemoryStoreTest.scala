@@ -7,7 +7,7 @@ import com.tommo.kademlia.identity.Id
 class InMemoryStoreTest extends BaseUnitTest with BaseFixture {
 
   trait Fixture {
-    val store = new InMemoryStore[Int]
+    val store = new InMemoryStore[Int] {}
     val id = aRandomId
   }
 

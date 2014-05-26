@@ -24,6 +24,8 @@ class KadConfigTest extends BaseUnitTest {
 	  assert(conf.expireRemote == (700 seconds))
 	  assert(conf.republishRemote == (600 seconds))
 	  
+	  assert(conf.name == "TestSystem")
+	  
   }
   
   test("fail custom config does not contain the defined properties") {

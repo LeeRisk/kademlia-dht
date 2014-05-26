@@ -2,18 +2,15 @@ package com.tommo.kademlia.lookup
 
 import scala.collection.immutable.{ TreeMap, SortedMap }
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import akka.actor.{ ActorLogging, ActorRef, FSM, Actor }
 
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.protocol.{ ActorNode, Request }
 import com.tommo.kademlia.protocol.Message._
-import com.tommo.kademlia.protocol.RequestSenderActor.NodeRequest
+import com.tommo.kademlia.protocol.RequestDispatcher.NodeRequest
 import LookupNode._
 
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.FSM
-
-class LookupNode(selfNode: ActorNode, kBucketSetRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) extends FSM[State, Data] with ActorLogging {
+class LookupNode(selfNode: ActorNode, kBucketSetRef: ActorRef, reqDispatcherRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) extends FSM[State, Data] with ActorLogging {
   import context._
 
   startWith(Initial, Empty)
@@ -41,7 +38,7 @@ class LookupNode(selfNode: ActorNode, kBucketSetRef: ActorRef, reqSender: ActorR
   })
 
   private def sendRequest(toQuery: Map[Id, NodeQuery], lookupId: Id) {
-    toQuery.foreach { case (_, NodeQuery(ref, _, _)) => reqSender ! NodeRequest(ref, remoteKClosest(lookupId, kBucketSize)) }
+    toQuery.foreach { case (_, NodeQuery(ref, _, _)) => reqDispatcherRef ! NodeRequest(ref, remoteKClosest(lookupId, kBucketSize)) }
     setTimer("roundTimer", RoundEnd, roundTimeOut, false)
   }
 
@@ -109,6 +106,11 @@ class LookupNode(selfNode: ActorNode, kBucketSetRef: ActorRef, reqSender: ActorR
 }
 
 object LookupNode {
+  trait Provider {
+    def newLookupNodeActor(selfNode: ActorNode, kBucketSetRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration): Actor =
+      new LookupNode(selfNode, kBucketSetRef, reqSender, kBucketSize, alpha, roundTimeOut)
+  }
+
   case class FindKClosest(searchId: Id)
   case class Result(searchId: Id, kclosest: List[ActorNode])
 

@@ -5,13 +5,13 @@ import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.util.EventSource
 import com.tommo.kademlia.protocol.ActorNode
 import com.tommo.kademlia.protocol.Message._
-import com.tommo.kademlia.protocol.RequestSenderActor._
+import com.tommo.kademlia.protocol.RequestDispatcher._
 import akka.pattern.{ ask, pipe, AskTimeoutException }
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.event.Logging
 
-class KBucketSetActor(id: Id, requestSender: ActorRef)(implicit kadConfig: KadConfig) extends Actor with EventSource {
+class KBucketSetActor(id: Id, reqDispatchRef: ActorRef)(implicit kadConfig: KadConfig) extends Actor with EventSource {
   this: KBucketSet.Provider =>
 
   import KBucketSetActor._
@@ -41,12 +41,17 @@ class KBucketSetActor(id: Id, requestSender: ActorRef)(implicit kadConfig: KadCo
       kSet.add(toAdd)
     } else {
       val lowestOrder = kSet.getLowestOrder(toAdd)
-      requestSender ! NodeRequest(lowestOrder.ref, PingRequest, customData = (lowestOrder, toAdd))
+      reqDispatchRef ! NodeRequest(lowestOrder.ref, PingRequest, customData = (lowestOrder, toAdd))
     }
   }
 }
 
 object KBucketSetActor {
+  trait Provider {
+    def kBucketSetActor(id: Id, requestSender: ActorRef)(implicit kadConfig: KadConfig): Actor = 
+      new KBucketSetActor(id, requestSender) with KBucketSet.Provider
+  }
+  
   case class Add(node: ActorNode)
 
   case object GetNumKBuckets

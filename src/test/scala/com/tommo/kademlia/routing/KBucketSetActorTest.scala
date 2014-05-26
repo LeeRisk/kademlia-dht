@@ -3,7 +3,7 @@ package com.tommo.kademlia.routing
 import com.tommo.kademlia.BaseTestKit
 import com.tommo.kademlia.protocol.ActorNode
 import com.tommo.kademlia.protocol.Message._
-import com.tommo.kademlia.protocol.RequestSenderActor._
+import com.tommo.kademlia.protocol.RequestDispatcher._
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.routing.KBucketSetActor._
 import com.tommo.kademlia.protocol.Node

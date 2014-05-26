@@ -1,12 +1,14 @@
 package com.tommo.kademlia.lookup
 
 import com.tommo.kademlia.routing.KBucketSetActor._
-import akka.actor.{ Props, Actor }
+import akka.actor.{ Props, Actor, ActorRef }
+import scala.concurrent.duration._
 import com.tommo.kademlia.identity.Id
 import akka.testkit.{ TestActorRef, TestProbe }
 import LookupDispatcher._
 import com.tommo.kademlia.util.RefreshActor._
 import com.tommo.kademlia.util.EventSource._
+import com.tommo.kademlia.protocol.ActorNode
 import com.tommo.kademlia.BaseFixture
 import com.tommo.kademlia.BaseTestKit
 
@@ -17,13 +19,12 @@ class LookupDispatcherTest extends BaseTestKit("LookupDispatcher") with BaseFixt
     val lookupValueProbe = TestProbe()
     val lookupNodeProbe = TestProbe()
 
-    trait MockProvider extends Provider {
-      self: Actor =>
-      override def lookupNode() = lookupNodeProbe.ref
-      override def lookupValue() = lookupValueProbe.ref
+    trait MockProvider extends LookupNode.Provider with LookupValue.Provider {
+      override def newLookupValueActor(selfNode: ActorNode, storeRef: ActorRef, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) = wrapActorRef(lookupValueProbe.ref)
+      override def newLookupNodeActor(selfNode: ActorNode, kBucketSetRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) = wrapActorRef(lookupNodeProbe.ref)
     }
-
-    val verifyRef = TestActorRef[LookupDispatcher](Props(new LookupDispatcher(kProbe.ref, timerProbe.ref) with MockProvider))
+    
+    val verifyRef = TestActorRef[LookupDispatcher](Props(new LookupDispatcher(ActorNode(TestProbe().ref, id), TestProbe().ref, TestProbe().ref, kProbe.ref, timerProbe.ref) with MockProvider))
 
     def expectGetRandomIdInSameBucketAs(id: Id) = kProbe.fishForMessage() {
       case GetRandomIdInSameBucketAs(anId) if id == anId => true

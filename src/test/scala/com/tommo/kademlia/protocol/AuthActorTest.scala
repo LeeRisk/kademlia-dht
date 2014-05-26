@@ -3,7 +3,7 @@ package com.tommo.kademlia.protocol
 import com.tommo.kademlia.BaseTestKit
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.routing.KBucketSetActor.Add
-import RequestSenderActor._
+import RequestDispatcher._
 import akka.actor.{ Actor, Props, ReceiveTimeout }
 import akka.testkit.{ TestActorRef, TestProbe }
 

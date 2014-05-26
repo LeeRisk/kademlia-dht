@@ -18,12 +18,15 @@ trait KadConfig {
 	def republishOriginal: FiniteDuration
 	def republishRemote: FiniteDuration
 	def expireRemote: FiniteDuration
+	def name: String
 }
 
 class TypeSafeKadConfig(config: Config) extends KadConfig {
   def this() = this(ConfigFactory.load())
 
   config.checkValid(ConfigFactory.defaultReference(), namespace)
+  
+  val name = config.getString(s"${namespace}.name")
 
   val host = Host(config.getString(s"${namespace}.host"), config.getInt(s"${namespace}.port"))
   

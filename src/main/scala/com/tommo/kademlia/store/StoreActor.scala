@@ -9,13 +9,19 @@ import com.tommo.kademlia.util.EventSource._
 import com.tommo.kademlia.routing.KBucketSetActor._
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.protocol.ActorNode
-import com.tommo.kademlia.protocol.RequestSenderActor._
+import com.tommo.kademlia.protocol.RequestDispatcher._
 import com.tommo.kademlia.protocol.Message._
 import com.tommo.kademlia.util.RefreshActor._
 import com.tommo.kademlia.KadConfig
 import com.tommo.kademlia.lookup._
 
 object StoreActor {
+
+  trait Provider {
+    def storeActor[V](selfId: Id, kBucketRef: ActorRef, reqDispatchRef: ActorRef, timerRef: ActorRef, lookupRef: ActorRef)(implicit config: KadConfig) =
+      new StoreActor[V](selfId, kBucketRef, reqDispatchRef, timerRef, lookupRef) with Clock with InMemoryStore[V]
+  }
+
   private[store] case class InsertMetaData(generation: Int, currTime: Epoch, ttl: FiniteDuration, originalPublish: Boolean)
 
   private[store] case class NumNodeBetweenGen(key: Id, numNodes: Int, gen: Int)

@@ -7,7 +7,7 @@ import scala.collection.immutable.TreeMap
 import scala.concurrent.duration._
 import com.tommo.kademlia.protocol.Message._
 import com.tommo.kademlia.identity.Id
-import com.tommo.kademlia.protocol.RequestSenderActor._
+import com.tommo.kademlia.protocol.RequestDispatcher._
 import com.tommo.kademlia.routing.KBucketSetActor._
 import com.tommo.kademlia.BaseFixture
 import com.tommo.kademlia.BaseTestKit

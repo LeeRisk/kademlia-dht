@@ -1,11 +1,12 @@
 package com.tommo.kademlia.lookup
 
 import scala.concurrent.duration.FiniteDuration
+import akka.actor.Actor
 
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.protocol.Message.{ FindValueReply, FindValueRequest, CacheStoreRequest }
 import com.tommo.kademlia.protocol.ActorNode
-import com.tommo.kademlia.protocol.RequestSenderActor._
+import com.tommo.kademlia.protocol.RequestDispatcher._
 import com.tommo.kademlia.store.StoreActor._
 import LookupNode._
 import LookupValue._
@@ -60,6 +61,12 @@ class LookupValue[V](selfNode: ActorNode, storeRef: ActorRef, kBucketRef: ActorR
 }
 
 object LookupValue {
+  
+  trait Provider {
+    def newLookupValueActor(selfNode: ActorNode, storeRef: ActorRef, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration): Actor = 
+      new LookupValue(selfNode, storeRef, kBucketRef, reqSender, kBucketSize, alpha, roundTimeOut)
+  }
+  
   case class FindValue(searchId: Id) 
   case class Result[V](result: Either[List[ActorNode], V])
 

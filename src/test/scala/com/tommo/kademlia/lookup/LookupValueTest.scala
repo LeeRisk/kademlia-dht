@@ -11,7 +11,7 @@ import com.tommo.kademlia.BaseFixture
 import com.tommo.kademlia.BaseTestKit
 import com.tommo.kademlia.protocol.Message.{ FindValueReply, FindValueRequest, CacheStoreRequest }
 import com.tommo.kademlia.protocol.ActorNode
-import com.tommo.kademlia.protocol.RequestSenderActor._
+import com.tommo.kademlia.protocol.RequestDispatcher._
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.store.StoreActor._
 import com.tommo.kademlia.protocol.Message._
