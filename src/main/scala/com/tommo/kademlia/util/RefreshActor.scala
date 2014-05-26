@@ -2,8 +2,7 @@ package com.tommo.kademlia.util
 
 import scala.concurrent.duration._
 import scala.collection.mutable.{ PriorityQueue, Map }
-import com.tommo.kademlia.misc.time.Clock
-import com.tommo.kademlia.misc.time.Clock.Epoch
+import com.tommo.kademlia.misc.time.{ Clock, Epoch }
 import RefreshActor._
 import akka.actor.{ FSM, ActorRef }
 

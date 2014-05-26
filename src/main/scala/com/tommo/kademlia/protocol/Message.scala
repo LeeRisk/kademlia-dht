@@ -23,7 +23,8 @@ object Message {
   case class FindValueRequest(val searchId: Id, k: Int) extends Request
   case class FindValueReply[V](val result: Either[KClosestReply, RemoteValue[V]]) extends Reply
 
-  case class StoreRequest[V](val key: Id, toStore: RemoteValue[V]) extends MutableRequest
+  case class CacheStoreRequest[V](val key: Id, toStore: RemoteValue[V]) extends MutableRequest
+  case class StoreRequest[V](val key: Id, toStore: RemoteValue[V], generation: Int) extends MutableRequest
   case object AckReply extends Reply
 
   case class RemoteValue[V](value: V, ttl: FiniteDuration)

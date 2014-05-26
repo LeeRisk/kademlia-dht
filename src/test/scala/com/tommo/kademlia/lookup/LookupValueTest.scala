@@ -9,7 +9,7 @@ import LookupValue._
 import LookupNode._
 import com.tommo.kademlia.BaseFixture
 import com.tommo.kademlia.BaseTestKit
-import com.tommo.kademlia.protocol.Message.{ FindValueReply, FindValueRequest, StoreRequest }
+import com.tommo.kademlia.protocol.Message.{ FindValueReply, FindValueRequest, CacheStoreRequest }
 import com.tommo.kademlia.protocol.ActorNode
 import com.tommo.kademlia.protocol.RequestSenderActor._
 import com.tommo.kademlia.identity.Id
@@ -82,7 +82,7 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
 
       ref ! reply
 
-      reqSendProbe.expectMsg(NodeRequest(s1._2.ref, StoreRequest(qd.req.id, reply.result.right.get)))
+      reqSendProbe.expectMsg(NodeRequest(s1._2.ref, CacheStoreRequest(qd.req.id, reply.result.right.get)))
     }
   }
 }

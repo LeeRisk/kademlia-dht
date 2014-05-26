@@ -4,8 +4,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 
 import com.tommo.kademlia.BaseTestKit
-import com.tommo.kademlia.misc.time.Clock
-import com.tommo.kademlia.misc.time.Clock.Epoch
+import com.tommo.kademlia.misc.time.{ Clock, Epoch }
 import com.tommo.kademlia.util.RefreshActor.Refresh
 
 import akka.actor.Props

@@ -119,7 +119,7 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
       when(kSet.getNodesBetween(anId)).thenReturn(2)
       
       verifyRef ! GetNumNodesInBetween(anId)
-      expectMsg(NumNodesInBetween(anId, 2))
+      expectMsg(NumNodesInBetween(2))
       verify(kSet).getNodesBetween(anId)
       
     }

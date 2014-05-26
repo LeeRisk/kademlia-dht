@@ -2,9 +2,9 @@ package com.tommo.kademlia.store
 
 import scala.concurrent.duration._
 import scala.collection.mutable.Map
-import akka.actor.{ Actor, ActorRef }
+import akka.actor.{ Actor, ActorRef, Props }
 
-import com.tommo.kademlia.misc.time.Clock
+import com.tommo.kademlia.misc.time.{ Clock, Epoch }
 import com.tommo.kademlia.util.EventSource._
 import com.tommo.kademlia.routing.KBucketSetActor._
 import com.tommo.kademlia.identity.Id
@@ -15,12 +15,30 @@ import com.tommo.kademlia.util.RefreshActor._
 import com.tommo.kademlia.KadConfig
 import com.tommo.kademlia.lookup._
 
+object StoreActor {
+  private[store] case class InsertMetaData(generation: Int, currTime: Epoch, ttl: FiniteDuration, originalPublish: Boolean)
+
+  private[store] case class NumNodeBetweenGen(key: Id, numNodes: Int, gen: Int)
+
+  case class Insert[V](key: Id, value: V)
+  case class Get(key: Id)
+  case class GetResult[V](value: Option[V])
+
+  case class Republish(val key: Id, val after: Duration, val value: RepublishValue, val refreshKey: String = "republishStore") extends Refresh
+  case class RepublishValue(generation: Int)
+
+  case class RepublishRemote(val key: Id, val after: Duration, val value: RepublishRemoteValue, val refreshKey: String = "republishRemoteStore") extends Refresh
+  case class RepublishRemoteValue(generation: Int)
+
+  case class ExpireRemoteStore(val key: Id, val after: Duration, val value: ExpireValue, val refreshKey: String = "expireRemoteStore") extends Refresh
+  case class ExpireValue(generation: Int)
+}
+
 class StoreActor[V](selfId: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef, timerRef: ActorRef, lookupRef: ActorRef)(implicit val config: KadConfig) extends Actor {
   this: Store[V] with Clock =>
 
   import StoreActor._
   import config._
-  import context._
 
   override def preStart() {
     kBucketRef ! RegisterListener(self)
@@ -30,66 +48,122 @@ class StoreActor[V](selfId: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef, ti
     kBucketRef ! UnregisterListener(self)
   }
 
-  val expireMap = Map[Id, Int]()
+  val metaMap = Map[Id, InsertMetaData]() // invariant - a key exists in a store then it also exists in this map
 
   def receive = {
     case insertMsg: Insert[V] =>
       import insertMsg._
-      insert(key, value)
-      lookupRef ! LookupNode.FindKClosest(key)
+
+      updateAndDo(key, expireRemote, true) {
+        meta =>
+          insert(key, value)
+          lookupRef ! LookupNode.FindKClosest(key)
+          timerRef ! Republish(key, republishOriginal, RepublishValue(meta.generation))
+      }
 
     case LookupNode.Result(key, nodes) =>
-      get(key) match {
-        case Some(toStore) =>
-          nodes.map(n => NodeRequest(n.ref, StoreRequest(key, null))).foreach(reqSenderRef ! _)
-          timerRef ! Republish(key, republishOriginal)
-        case None =>
+      get(key) match { // if kclosest returned after an expiration timer executed then don't do anything
+        case Some(toStore) => executeFn(key, ()) {
+          meta => nodes.map(n => NodeRequest(n.ref, StoreRequest(key, RemoteValue(toStore, getCurrTTL(meta)), meta.generation))).foreach(reqSenderRef ! _)
+        }
+        case _ =>
       }
 
     case Add(newNode) => // listener event from kbucket that signals a new node was added
-      val toReplicate = findCloserThan(selfId, newNode.id).map { case (key, value) => NodeRequest(newNode.ref, StoreRequest(key, null), false) }
-      toReplicate.foreach(reqSenderRef ! _)
+      findCloserThan(selfId, newNode.id).flatMap {
+        case (key, value) =>
+          executeFn[Option[NodeRequest]](key, None)(meta => Some(NodeRequest(newNode.ref, StoreRequest(key, RemoteValue(value, getCurrTTL(meta)), meta.generation), false)))
+      }.foreach(reqSenderRef ! _)
 
     case storeReq: StoreRequest[V] =>
       import storeReq._
-      insert(key, toStore.value)
-      kBucketRef ! GetNumNodesInBetween(key)
 
-    case NumNodesInBetween(key, numNode) =>
-      scheduleExpire(key, numNode)
+      updateAndDo(key, expireRemote, false, storeReq.generation) {
+        meta =>
+          insert(key, toStore.value)
+          timerRef ! RepublishRemote(key, republishRemote, RepublishRemoteValue(meta.generation))
+          scheduleExpire(key, meta.ttl, meta.generation)
+      }
 
-    case RefreshDone(key: Id, ExpireValue(rValue)) if (expireMap.get(key).get == rValue) =>
-      expireMap -= key
-      remove(key)
+    case cacheReq: CacheStoreRequest[V] =>
+      import cacheReq._
+      updateAndDo(key, toStore.ttl, false) {
+        meta =>
+          insert(key, toStore.value)
+          val thisSender = sender
 
-    case RefreshDone(key: Id, RepublishValue) =>
-      lookupRef ! LookupNode.FindKClosest(key)
+          context.actorOf(Props(new Actor() {
+            kBucketRef ! GetNumNodesInBetween(key)
+
+            def receive = {
+              case NumNodesInBetween(numNode) =>
+                thisSender ! NumNodeBetweenGen(key, numNode, meta.generation)
+                context.stop(self)
+            }
+          }))
+      }
+
+    case NumNodeBetweenGen(key, numNode, gen) =>
+      doIfGenSameOrHigher(key, gen) {
+        meta =>
+          val expInverse = meta.ttl * (1 / scala.math.exp(numNode.toDouble / kBucketSize))
+          timerRef ! ExpireRemoteStore(key, expInverse, ExpireValue(meta.generation))
+      }
+
+    case RefreshDone(key: Id, ExpireValue(gen)) =>
+      doIfGenSameOrHigher(key, gen) {
+        case meta if !meta.originalPublish =>
+          metaMap -= key
+          remove(key)
+      }
+
+    case RefreshDone(key: Id, RepublishRemoteValue(gen)) =>
+      doIfGenSameOrHigher(key, gen) {
+        meta => timerRef ! RepublishRemote(key, republishRemote, RepublishRemoteValue(meta.generation))
+      }
+
+    case RefreshDone(key: Id, RepublishValue(gen)) =>
+      updateAndDo(key, expireRemote, true, generation = gen + 1) {
+        meta =>
+          lookupRef ! LookupNode.FindKClosest(key)
+          timerRef ! Republish(key, republishOriginal, RepublishValue(meta.generation))
+      }
   }
 
-  private def scheduleExpire(key: Id, numNode: Int) { // TODO need to consider when future nodes are added and adjust the timer accordingly
-    def updateExpireMap() {
-      expireMap.get(key) match {
-        case Some(count) => expireMap += key -> (count + 1)
-        case None => expireMap += key -> 0
-      }
+  private def getCurrTTL(meta: InsertMetaData) = (meta.currTime + meta.ttl.toMillis - getTime()) match {
+    case ttl if ttl > 0 => ttl milliseconds
+    case _ => 0 seconds
+  }
+
+  private def scheduleExpire(key: Id, at: FiniteDuration, gen: Int) = timerRef ! ExpireRemoteStore(key, at, ExpireValue(gen))
+
+  private def doIfGenSameOrHigher(key: Id, gen: Int)(fn: InsertMetaData => Unit) = executeFn(key, ()) { meta => if (gen >= meta.generation) fn(meta) }
+
+  private def updateAndDo(key: Id, ttl: FiniteDuration, originalPublish: Boolean, generation: Int = -1)(fn: InsertMetaData => Unit) = {
+    def isOriginal(meta: InsertMetaData) = if (originalPublish || meta.originalPublish) true else false
+
+    def addAndReturn(generation: Int, originalPublish: Boolean): Option[InsertMetaData] = {
+      val meta = InsertMetaData(generation, getTime(), ttl, originalPublish)
+      metaMap += key -> meta
+      Some(meta)
     }
 
-    def getExpireTime(expire: Duration) = expire * (1 / scala.math.exp(numNode.toDouble / kBucketSize))
+    val updated = executeFn(key, addAndReturn(0, originalPublish)) {
+      case meta if generation == -1 && isOriginal(meta) => addAndReturn(meta.generation + 1, true)
+      case meta if generation >= meta.generation => addAndReturn(generation, isOriginal(meta))
+      case _ => None
+    }
 
-    updateExpireMap()
-    timerRef ! ExpireRemoteStore(key, getExpireTime(expireRemote), ExpireValue(expireMap.get(key).get))
+    updated match {
+      case Some(x) => fn(x)
+      case _ =>
+    }
   }
-}
 
-object StoreActor {
-  case class Insert[V](key: Id, value: V)
-  case class Get(key: Id)
-  case class GetResult[V](value: Option[V])
-
-  case class Republish(val key: Id, val after: Duration, val value: RepublishValue.type = RepublishValue, val refreshKey: String = "republishStore") extends Refresh
-  case object RepublishValue
-
-  case class ExpireRemoteStore(val key: Id, val after: Duration, val value: ExpireValue, val refreshKey: String = "expireRemoteStore") extends Refresh
-  case class ExpireValue(storeCount: Int)
-
+  private def executeFn[T](key: Id, noExist: => T)(exist: InsertMetaData => T) = {
+    metaMap.get(key) match {
+      case Some(meta) => exist(meta)
+      case _ => noExist
+    }
+  }
 }

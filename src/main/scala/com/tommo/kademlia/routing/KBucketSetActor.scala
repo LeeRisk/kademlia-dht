@@ -21,7 +21,7 @@ class KBucketSetActor(id: Id, requestSender: ActorRef)(implicit kadConfig: KadCo
   val kSet = newKSet[ActorNode](id, kBucketSize) // TODO don't want to restart this actor if exception occurs since it contains routing info
 
   def receive = eventSourceReceive orElse {
-    case GetNumNodesInBetween(id) => sender ! NumNodesInBetween(id, kSet.getNodesBetween(id))
+    case GetNumNodesInBetween(id) => sender ! NumNodesInBetween(kSet.getNodesBetween(id))
     case GetRandomIdInSameBucketAs(id) => 
       val index = kSet.getKBucketIndex(id)
       sender ! RandomId((index, kSet.getRandomId(index)) :: Nil)
@@ -57,5 +57,5 @@ object KBucketSetActor {
   case class RandomId(randIds: List[(Int, Id)]) // list of tuple that represents (index of bucketset, id)
   
   case class GetNumNodesInBetween(id: Id)
-  case class NumNodesInBetween(id: Id, numNode: Int)
+  case class NumNodesInBetween(numNode: Int)
 }

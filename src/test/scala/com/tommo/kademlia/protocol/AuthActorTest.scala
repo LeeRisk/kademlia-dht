@@ -150,7 +150,6 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
 
   /* Test ReceiverAuth */
   trait ReceiverAuthFixTure extends BaseFixture {
-    println("initig")
     val requestProbe = TestProbe()
     val selfProbe = TestProbe()
 

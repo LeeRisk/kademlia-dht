@@ -3,10 +3,10 @@ import scala.annotation.tailrec
 
 import Id._
 
-case class Id(private[identity] val decimalVal: BigInt, val size: Int) {
+class Id private (val decimalVal: BigInt, val size: Int) {
   def distance(to: Id): Id = {
     require(size == to.size, "Must have same address space size to compute distance")
-    Id(decimalVal ^ to.decimalVal, size)
+    new Id(decimalVal ^ to.decimalVal, size)
   }
 
   def longestPrefixLength(other: Id) = {
@@ -21,7 +21,6 @@ case class Id(private[identity] val decimalVal: BigInt, val size: Int) {
 
     _longestPrefixLength(dist.size)
   }
-  
 
   def findAllNonMatchingFromRight(other: Id) = foldLeft(List[Int]()) {
     case (bit, list) => if (other.isBitSet(bit) != isBitSet(bit)) (bit - 1) :: list else list
@@ -36,12 +35,12 @@ case class Id(private[identity] val decimalVal: BigInt, val size: Int) {
   }
 
   class SelfOrder extends Ordering[Id] { // closeness relative to "this" id
-    
+
     override def compare(x: Id, y: Id) = {
-    	val xDistInt = distance(x).decimalVal
-    	val yDistInt = distance(y).decimalVal
-    	
-    	xDistInt.compare(yDistInt)
+      val xDistInt = distance(x).decimalVal
+      val yDistInt = distance(y).decimalVal
+
+      xDistInt.compare(yDistInt)
     }
   }
 
@@ -56,17 +55,26 @@ case class Id(private[identity] val decimalVal: BigInt, val size: Int) {
   private def foldLeft[T](i: T, start: Int = size)(op: (Int, T) => T) = {
     def _foldLeft(bit: Int = start, acc: T = i): T = bit match {
       case 0 => acc
-      case _ => _foldLeft(bit - 1, op(bit, acc)) 
+      case _ => _foldLeft(bit - 1, op(bit, acc))
     }
     _foldLeft()
   }
 
   private def isBitSet(bit: Int) = decimalVal.testBit(bit - 1)
-  private def setBit(bit: Int) = Id(decimalVal.setBit(bit - 1), size)
+  private def setBit(bit: Int) = new Id(decimalVal.setBit(bit - 1), size)
+
+  override def equals(o: Any) = o match {
+    case that: Id => that.decimalVal.equals(decimalVal) && that.size.equals(size)
+    case _ => false
+  }
+  
+   override def hashCode() =  (41 * (41 + decimalVal) + size).hashCode;
 
 }
 
 object Id {
+  def unapply(id: Id) = Some(id.toString)
+
   private def toUnsigned(bytes: Array[Byte]): BigInt = {
     def _toUnsigned(index: Int = 0, decVal: BigInt = BigInt(0)): BigInt = if (index == bytes.length) decVal else _toUnsigned(index + 1, (decVal << 8) + (bytes(index) & 0xff))
     _toUnsigned()

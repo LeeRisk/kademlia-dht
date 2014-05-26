@@ -57,8 +57,6 @@ class LookupDispatcherTest extends BaseTestKit("LookupDispatcher") with BaseFixt
 
       verifyRef ! RandomId(randIds)
       
-      println(refreshReq)
-
       timerProbe.expectMsgAllOf(refreshReq: _*)
     }
   }

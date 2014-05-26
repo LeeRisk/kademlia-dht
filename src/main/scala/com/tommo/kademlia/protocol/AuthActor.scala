@@ -68,8 +68,8 @@ private[protocol] class SenderAuthActor(val selfId: Id, kBucketActor: ActorRef, 
 
   override def doInChallenge(req: Request) {
       request = Some(req)
-      enableTimeout()
       node.tell(AuthSenderRequest(req, toEchoId), selfNode)
+      enableTimeout()
   }
 
   override def doTimeOut() {
@@ -108,8 +108,13 @@ private[protocol] class ReceiverAuthActor(selfId: Id, kBucketActor: ActorRef, re
         case mutable: MutableRequest =>
           sendBackReply(AckReply)
           mutRequest = Some(mutable)
-        case _ => requestHandler ! request
+        case _ => sendRequest(request)
       }
+  }
+  
+  private def sendRequest(req: Request) {
+    requestHandler ! req
+    enableTimeout()
   }
 
   private def sendBackReply(reply: Reply) {
@@ -118,7 +123,7 @@ private[protocol] class ReceiverAuthActor(selfId: Id, kBucketActor: ActorRef, re
 
   override def authSuccess(reply: AuthReply) {
     mutRequest match {
-      case Some(mutableReq) => requestHandler ! mutableReq
+      case Some(mutableReq) => sendRequest(mutableReq)
       case _ =>
     }
   }

@@ -3,7 +3,7 @@ package com.tommo.kademlia.lookup
 import scala.concurrent.duration.FiniteDuration
 
 import com.tommo.kademlia.identity.Id
-import com.tommo.kademlia.protocol.Message.{ FindValueReply, FindValueRequest, StoreRequest }
+import com.tommo.kademlia.protocol.Message.{ FindValueReply, FindValueRequest, CacheStoreRequest }
 import com.tommo.kademlia.protocol.ActorNode
 import com.tommo.kademlia.protocol.RequestSenderActor._
 import com.tommo.kademlia.store.StoreActor._
@@ -38,7 +38,7 @@ class LookupValue[V](storeRef: ActorRef, kBucketRef: ActorRef, reqSender: ActorR
           val toSendRef = qd.seen.filter(Function.tupled((id, node) => node.respond)).headOption
 
           toSendRef match {
-            case Some((id, nq)) => reqSender ! NodeRequest(nq.ref, StoreRequest(qd.req.id, remoteValue))
+            case Some((id, nq)) => reqSender ! NodeRequest(nq.ref, CacheStoreRequest(qd.req.id, remoteValue))
             case _ =>
           }
 
