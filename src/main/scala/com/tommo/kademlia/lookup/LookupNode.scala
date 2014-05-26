@@ -13,7 +13,7 @@ import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.FSM
 
-class LookupNode(kBucketSetRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) extends FSM[State, Data] with ActorLogging {
+class LookupNode(selfNode: ActorNode, kBucketSetRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) extends FSM[State, Data] with ActorLogging {
   import context._
 
   startWith(Initial, Empty)
@@ -28,7 +28,8 @@ class LookupNode(kBucketSetRef: ActorRef, reqSender: ActorRef, kBucketSize: Int,
 
   when(WaitForLocalKclosest) {
     case Event(reply: KClosestReply, req: Lookup) =>
-      val qd = QueryNodeData(req, seen = TreeMap(reply.nodes.map(actorNodeToKeyPair(_, round = 1)): _*)(new req.id.SelfOrder), currRound = 1)
+      val nodes = selfNode :: reply.nodes // add self since kBucketSet doesn't know itself
+      val qd = QueryNodeData(req, seen = TreeMap(nodes.map(actorNodeToKeyPair(_, round = 1)): _*)(new req.id.SelfOrder), currRound = 1)
       goto(QueryNode) using takeAndUpdate(qd, alpha)
   }
 
@@ -110,8 +111,6 @@ class LookupNode(kBucketSetRef: ActorRef, reqSender: ActorRef, kBucketSize: Int,
 object LookupNode {
   case class FindKClosest(searchId: Id)
   case class Result(searchId: Id, kclosest: List[ActorNode])
-
-  /** Internal implementation */
 
   def actorNodeToKeyPair(node: ActorNode, round: Int = 1, respond: Boolean = false) = (node.id, NodeQuery(node.ref, round, respond))
 

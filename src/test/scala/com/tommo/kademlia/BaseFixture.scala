@@ -23,6 +23,7 @@ trait BaseFixture {
   }
 
   implicit val mockConfig = new TestKadConfig
+  
   val id = mockZeroId(mockConfig.kBucketSize)
 
   def mockHost = Host("hostname:9009")

@@ -61,14 +61,14 @@ private[protocol] abstract class AuthActor[V](kBucketActor: ActorRef, timeout: D
 
 }
 
-private[protocol] class SenderAuthActor(val selfId: Id, kBucketActor: ActorRef, node: ActorRef, discoverNewNode: Boolean, customData: Option[Any], timeout: Duration, selfNode: ActorRef) extends AuthActor[Request](kBucketActor, timeout) {
+private[protocol] class SenderAuthActor(val selfNode: ActorNode, kBucketActor: ActorRef, node: ActorRef, discoverNewNode: Boolean, customData: Option[Any], timeout: Duration) extends AuthActor[Request](kBucketActor, timeout) {
   var request =  Option.empty[Request]
 
   override val addToKBucket = discoverNewNode
 
   override def doInChallenge(req: Request) {
       request = Some(req)
-      node.tell(AuthSenderRequest(req, toEchoId), selfNode)
+      node.tell(AuthSenderRequest(req, toEchoId), selfNode.ref)
       enableTimeout()
   }
 
@@ -80,7 +80,7 @@ private[protocol] class SenderAuthActor(val selfId: Id, kBucketActor: ActorRef, 
   override def authSuccess(reply: AuthReply) {
     (reply: @unchecked) match {
       case AuthRecieverReply(response, _, toEchoId, _) =>
-        node.tell(AuthSenderReply(selfId, toEchoId), selfNode)
+        node.tell(AuthSenderReply(selfNode.id, toEchoId), selfNode.ref)
 
         customData match {
           case Some(customData) => requestor ! CustomReply(response, customData)
@@ -90,7 +90,7 @@ private[protocol] class SenderAuthActor(val selfId: Id, kBucketActor: ActorRef, 
   }
 }
 
-private[protocol] class ReceiverAuthActor(selfId: Id, kBucketActor: ActorRef, requestHandler: ActorRef, selfNode: ActorRef, timeout: Duration) extends AuthActor[AuthSenderRequest](kBucketActor, timeout) {
+private[protocol] class ReceiverAuthActor(selfNode: ActorNode, kBucketActor: ActorRef, requestHandler: ActorRef, timeout: Duration) extends AuthActor[AuthSenderRequest](kBucketActor, timeout) {
   var toEchoBack = 0
   var mutRequest = Option.empty[MutableRequest]
 
@@ -118,7 +118,7 @@ private[protocol] class ReceiverAuthActor(selfId: Id, kBucketActor: ActorRef, re
   }
 
   private def sendBackReply(reply: Reply) {
-    requestor.tell(AuthRecieverReply(reply, toEchoBack, toEchoId, selfId), selfNode)
+    requestor.tell(AuthRecieverReply(reply, toEchoBack, toEchoId, selfNode.id), selfNode.ref)
   }
 
   override def authSuccess(reply: AuthReply) {
@@ -131,7 +131,7 @@ private[protocol] class ReceiverAuthActor(selfId: Id, kBucketActor: ActorRef, re
 
 object AuthActor {
   trait Provider {
-    def authSender(selfId: Id, kBucketActor: ActorRef, node: ActorRef, discoverNewNode: Boolean, customData: Option[Any],
-      timeout: Duration, selfNode: ActorRef): Actor = new SenderAuthActor(selfId, kBucketActor, node, discoverNewNode, customData, timeout, selfNode)
+    def authSender(selfNode: ActorNode, kBucketActor: ActorRef, node: ActorRef, 
+        discoverNewNode: Boolean, customData: Option[Any], timeout: Duration): Actor = new SenderAuthActor(selfNode, kBucketActor, node, discoverNewNode, customData, timeout)
   }
 }

@@ -18,8 +18,8 @@ class LookupNodeTest extends BaseTestKit("LookupNodeSpec") with BaseFixture {
   class Fixture extends LookupFixture(LookupNodeTest.this) {
     import mockConfig._
     val mockTimeOut = mockConfig.roundTimeOut
-
-    lazy val ref = TestFSMRef(new LookupNode(kClosestProbe.ref, reqSendProbe.ref, kBucketSize, roundConcurrency, mockTimeOut))
+    
+    lazy val ref = TestFSMRef(new LookupNode(ActorNode(TestProbe().ref, id), kClosestProbe.ref, reqSendProbe.ref, kBucketSize, roundConcurrency, mockTimeOut))
 
     lazy val underlyingFsm = ref.underlyingActor
   }

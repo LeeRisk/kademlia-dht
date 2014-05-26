@@ -23,8 +23,7 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
     val someRef = TestProbe().ref
     
     val storeProbe = TestProbe()
-
-    val ref = TestFSMRef(new LookupValue[Int](storeProbe.ref, kClosestProbe.ref, reqSendProbe.ref, kBucketSize, roundConcurrency, roundTimeOut))
+    val ref = TestFSMRef(new LookupValue[Int](ActorNode(TestProbe().ref, id), storeProbe.ref, kClosestProbe.ref, reqSendProbe.ref, kBucketSize, roundConcurrency, roundTimeOut))
     val listOfNodes = ActorNode(someRef, aRandomId(kBucketSize)) :: ActorNode(someRef, aRandomId(kBucketSize)) :: Nil
   }
 

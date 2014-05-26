@@ -12,8 +12,8 @@ import LookupValue._
 
 import akka.actor.ActorRef
 
-class LookupValue[V](storeRef: ActorRef, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration)
-  extends LookupNode(kBucketRef, reqSender, kBucketSize, alpha, roundTimeOut) {
+class LookupValue[V](selfNode: ActorNode, storeRef: ActorRef, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration)
+  extends LookupNode(selfNode, kBucketRef, reqSender, kBucketSize, alpha, roundTimeOut) {
 
   override def remoteKClosest(lookupId: Id, k: Int) = FindValueRequest(lookupId, k)
 
