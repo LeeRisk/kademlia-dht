@@ -22,9 +22,7 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
 
     val someRef = TestProbe().ref
     
-    val selfProbe = TestProbe()
-    
-    val ref = TestFSMRef(new LookupValue[Int](ActorNode(selfProbe.ref, id), kClosestProbe.ref, reqSendProbe.ref, kBucketSize, roundConcurrency, roundTimeOut))
+    val ref = TestFSMRef(new LookupValue[Int](ActorNode(selfProbe.ref, id), kClosestProbe.ref, kBucketSize, roundConcurrency, roundTimeOut))
     val listOfNodes = ActorNode(someRef, aRandomId(kBucketSize)) :: ActorNode(someRef, aRandomId(kBucketSize)) :: Nil
   }
 
@@ -46,7 +44,7 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
   test("if local store returns values go to finalize") {
     new Fixture {
       ref.setState(Initial, lookupReq)
-      ref ! GetResult(GetResult(3))
+      ref ! GetResult(Some(3, 10 seconds))
       awaitAssert(ref.stateName shouldBe FinalizeValue)
     }    
   }
@@ -63,9 +61,11 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
 
       ref.setState(QueryNode, qd)
 
-      ref ! FindValueReply(Right(RemoteValue(1, 1 second)))
+      ref ! FindValueReply(Right(RemoteValue(3, 1 second)))
 
       awaitAssert(ref.stateName shouldBe FinalizeValue)
+      
+      expectMsg(LookupValue.Result(Right(3)))
     }
   }
   
@@ -82,7 +82,7 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
 
       ref ! reply
 
-      reqSendProbe.expectMsg(NodeRequest(s1._2.ref, CacheStoreRequest(qd.req.id, reply.result.right.get)))
+      selfProbe.expectMsg(NodeRequest(s1._2.ref, CacheStoreRequest(qd.req.id, reply.result.right.get)))
     }
   }
 }

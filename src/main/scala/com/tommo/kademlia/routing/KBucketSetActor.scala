@@ -1,9 +1,9 @@
 package com.tommo.kademlia.routing
 
 import com.tommo.kademlia.KadConfig
-import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.util.EventSource
 import com.tommo.kademlia.protocol.ActorNode
+import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.protocol.Message._
 import com.tommo.kademlia.protocol.RequestDispatcher._
 import akka.pattern.{ ask, pipe, AskTimeoutException }
@@ -11,14 +11,14 @@ import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.event.Logging
 
-class KBucketSetActor(id: Id, reqDispatchRef: ActorRef)(implicit kadConfig: KadConfig) extends Actor with EventSource {
+class KBucketSetActor(selfNode: ActorNode)(implicit kadConfig: KadConfig) extends Actor with EventSource {
   this: KBucketSet.Provider =>
 
   import KBucketSetActor._
   import context._
   import kadConfig._
   
-  val kSet = newKSet[ActorNode](id, kBucketSize) // TODO don't want to restart this actor if exception occurs since it contains routing info
+  val kSet = newKSet[ActorNode](selfNode.id, kBucketSize) // TODO don't want to restart this actor if exception occurs since it contains routing info
 
   def receive = eventSourceReceive orElse {
     case GetNumNodesInBetween(id) => sender ! NumNodesInBetween(kSet.getNodesBetween(id))
@@ -27,8 +27,8 @@ class KBucketSetActor(id: Id, reqDispatchRef: ActorRef)(implicit kadConfig: KadC
       sender ! RandomId((index, kSet.getRandomId(index)) :: Nil)
     case GetRandomId(buckets) => sender ! RandomId(buckets.map(b => (b, kSet.getRandomId(b))))
     case GetNumKBuckets => sender ! NumKBuckets(kSet.addressSize)
-    case KClosestRequest(searchId, k) => sender ! KClosestReply(id, kSet.getClosestInOrder(k, searchId))
-    case addReq @ Add(node) if node.id != id =>
+    case KClosestRequest(searchId, k) => sender ! KClosestReply(selfNode.id, kSet.getClosestInOrder(k, searchId))
+    case addReq @ Add(node) if node.id != selfNode.id =>
       doAdd(node)
       sendEvent(addReq)
     case RequestTimeout(PingRequest, Some((dead: ActorNode, toAdd: ActorNode))) if (kSet.contains(dead)) =>
@@ -41,15 +41,15 @@ class KBucketSetActor(id: Id, reqDispatchRef: ActorRef)(implicit kadConfig: KadC
       kSet.add(toAdd)
     } else {
       val lowestOrder = kSet.getLowestOrder(toAdd)
-      reqDispatchRef ! NodeRequest(lowestOrder.ref, PingRequest, customData = (lowestOrder, toAdd))
+      selfNode.ref ! NodeRequest(lowestOrder.ref, PingRequest, customData = (lowestOrder, toAdd))
     }
   }
 }
 
 object KBucketSetActor {
   trait Provider {
-    def kBucketSetActor(id: Id, requestSender: ActorRef)(implicit kadConfig: KadConfig): Actor = 
-      new KBucketSetActor(id, requestSender) with KBucketSet.Provider
+    def newKBucketSetActor(selfNode: ActorNode)(implicit kadConfig: KadConfig): Actor = 
+      new KBucketSetActor(selfNode) with KBucketSet.Provider
   }
   
   case class Add(node: ActorNode)

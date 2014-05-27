@@ -11,7 +11,7 @@ import com.tommo.kademlia.util.RefreshActor._
 import com.tommo.kademlia.protocol.ActorNode
 import LookupDispatcher._
 
-class LookupDispatcher(selfNode: ActorNode, reqSender: ActorRef, kBucketRef: ActorRef, timerRef: ActorRef)(implicit val config: KadConfig) extends Actor {
+class LookupDispatcher(selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRef)(implicit val config: KadConfig) extends Actor {
   self: LookupNode.Provider with LookupValue.Provider =>
 
   import config._
@@ -28,8 +28,8 @@ class LookupDispatcher(selfNode: ActorNode, reqSender: ActorRef, kBucketRef: Act
     case LookupValue.FindValue(id: Id) => lookup(id, lookupValue)
   }
 
-  def lookupNode() = context.actorOf(Props(newLookupNodeActor(selfNode, kBucketRef, reqSender, kBucketSize, roundConcurrency, roundTimeOut)))
-  def lookupValue() = context.actorOf(Props(newLookupValueActor(selfNode, kBucketRef, reqSender, kBucketSize, roundConcurrency, roundTimeOut)))
+  def lookupNode() = context.actorOf(Props(newLookupNodeActor(selfNode, kBucketRef, kBucketSize, roundConcurrency, roundTimeOut)))
+  def lookupValue() = context.actorOf(Props(newLookupValueActor(selfNode, kBucketRef, kBucketSize, roundConcurrency, roundTimeOut)))
 
   def lookup(id: Id, lookupFn: => ActorRef = lookupNode) {
     lookupFn forward id
@@ -39,8 +39,8 @@ class LookupDispatcher(selfNode: ActorNode, reqSender: ActorRef, kBucketRef: Act
 
 object LookupDispatcher {
   trait Provider {
-    def newLookupDispatcher(selfNode: ActorNode, reqSender: ActorRef, kBucketRef: ActorRef, timerRef: ActorRef)(implicit config: KadConfig): Actor =
-      new LookupDispatcher(selfNode, reqSender, kBucketRef, timerRef) with LookupNode.Provider with LookupValue.Provider
+    def newLookupDispatcher(selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRef)(implicit config: KadConfig): Actor =
+      new LookupDispatcher(selfNode, kBucketRef, timerRef) with LookupNode.Provider with LookupValue.Provider
   }
 
   case class RefreshBucketTimer(val key: Int, val value: Id, val after: FiniteDuration, val refreshKey: String = "refreshBucket") extends Refresh

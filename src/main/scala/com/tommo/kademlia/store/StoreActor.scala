@@ -17,9 +17,9 @@ import com.tommo.kademlia.lookup._
 
 object StoreActor {
 
-  trait Provider {
-    def storeActor[V](selfId: Id, kBucketRef: ActorRef, reqDispatchRef: ActorRef, timerRef: ActorRef, lookupRef: ActorRef)(implicit config: KadConfig) =
-      new StoreActor[V](selfId, kBucketRef, reqDispatchRef, timerRef, lookupRef) with Clock with InMemoryStore[V]
+  trait Provider[V] {
+    def storeActor(selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRef, lookupRef: ActorRef)(implicit config: KadConfig): Actor =
+      new StoreActor[V](selfNode, kBucketRef, timerRef, lookupRef) with Clock with InMemoryStore[V]
   }
 
   private[store] case class InsertMetaData(generation: Int, currTime: Epoch, ttl: FiniteDuration, originalPublish: Boolean)
@@ -28,7 +28,7 @@ object StoreActor {
 
   case class Insert[V](key: Id, value: V)
   case class Get(key: Id)
-  case class GetResult[V](value: Option[V])
+  case class GetResult[V](value: Option[(V, FiniteDuration)])
 
   case class Republish(val key: Id, val after: Duration, val value: RepublishValue, val refreshKey: String = "republishStore") extends Refresh
   case class RepublishValue(generation: Int)
@@ -40,7 +40,7 @@ object StoreActor {
   case class ExpireValue(generation: Int)
 }
 
-class StoreActor[V](selfId: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef, timerRef: ActorRef, lookupRef: ActorRef)(implicit val config: KadConfig) extends Actor {
+class StoreActor[V](selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRef, lookupRef: ActorRef)(implicit val config: KadConfig) extends Actor {
   this: Store[V] with Clock =>
 
   import StoreActor._
@@ -70,16 +70,16 @@ class StoreActor[V](selfId: Id, kBucketRef: ActorRef, reqSenderRef: ActorRef, ti
     case LookupNode.Result(key, nodes) =>
       get(key) match { // if kclosest returned after an expiration timer executed then don't do anything
         case Some(toStore) => executeFn(key, ()) {
-          meta => nodes.map(n => NodeRequest(n.ref, StoreRequest(key, RemoteValue(toStore, getCurrTTL(meta)), meta.generation))).foreach(reqSenderRef ! _)
+          meta => nodes.map(n => NodeRequest(n.ref, StoreRequest(key, RemoteValue(toStore, getCurrTTL(meta)), meta.generation))).foreach(selfNode.ref ! _)
         }
         case _ =>
       }
 
     case Add(newNode) => // listener event from kbucket that signals a new node was added
-      findCloserThan(selfId, newNode.id).flatMap {
+      findCloserThan(selfNode.id, newNode.id).flatMap {
         case (key, value) =>
           executeFn[Option[NodeRequest]](key, None)(meta => Some(NodeRequest(newNode.ref, StoreRequest(key, RemoteValue(value, getCurrTTL(meta)), meta.generation), false)))
-      }.foreach(reqSenderRef ! _)
+      }.foreach(selfNode.ref ! _)
 
     case storeReq: StoreRequest[V] =>
       import storeReq._

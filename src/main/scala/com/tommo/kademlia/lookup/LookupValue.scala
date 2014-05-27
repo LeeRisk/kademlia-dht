@@ -13,8 +13,8 @@ import LookupValue._
 
 import akka.actor.ActorRef
 
-class LookupValue[V](selfNode: ActorNode, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration)
-  extends LookupNode(selfNode, kBucketRef, reqSender, kBucketSize, alpha, roundTimeOut) {
+class LookupValue[V](selfNode: ActorNode, kBucketRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration)
+  extends LookupNode(selfNode, kBucketRef, kBucketSize, alpha, roundTimeOut) {
 
   override def remoteKClosest(lookupId: Id, k: Int) = FindValueRequest(lookupId, k)
 
@@ -24,7 +24,7 @@ class LookupValue[V](selfNode: ActorNode, kBucketRef: ActorRef, reqSender: Actor
       stay using Lookup(searchId, sender)
     case Event(res: GetResult[V], req: Lookup) => 
       res.value match {
-        case Some(v) => goto(FinalizeValue) using FinalizeValueData(req, v)
+        case Some(v) => goto(FinalizeValue) using FinalizeValueData(req, v._1)
         case None => 
           self.tell(FindKClosest(req.id), req.sender)
           stay using req
@@ -39,7 +39,7 @@ class LookupValue[V](selfNode: ActorNode, kBucketRef: ActorRef, reqSender: Actor
           val toSendRef = qd.seen.filter(Function.tupled((id, node) => node.respond)).headOption
 
           toSendRef match {
-            case Some((id, nq)) => reqSender ! NodeRequest(nq.ref, CacheStoreRequest(qd.req.id, remoteValue))
+            case Some((id, nq)) => selfNode.ref ! NodeRequest(nq.ref, CacheStoreRequest(qd.req.id, remoteValue))
             case _ =>
           }
 
@@ -63,8 +63,8 @@ class LookupValue[V](selfNode: ActorNode, kBucketRef: ActorRef, reqSender: Actor
 object LookupValue {
   
   trait Provider {
-    def newLookupValueActor(selfNode: ActorNode, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration): Actor = 
-      new LookupValue(selfNode, kBucketRef, reqSender, kBucketSize, alpha, roundTimeOut)
+    def newLookupValueActor(selfNode: ActorNode, kBucketRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration): Actor = 
+      new LookupValue(selfNode, kBucketRef, kBucketSize, alpha, roundTimeOut)
   }
   
   case class FindValue(searchId: Id) 

@@ -23,13 +23,13 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
     }
 
     val mockProbe = TestProbe()
-    val reqSendProbe = TestProbe()
+    val selfProbe = TestProbe()
 
     val kClosest = ActorNode(mockProbe.ref, aRandomId) :: ActorNode(mockProbe.ref, aRandomId) :: Nil
 
     when(kSet.getClosestInOrder(anyInt(), any())).thenReturn(kClosest)
 
-    val verifyRef = TestActorRef[KBucketSetActor](Props(new KBucketSetActor(id, reqSendProbe.ref) with MockProvider))
+    val verifyRef = TestActorRef[KBucketSetActor](Props(new KBucketSetActor(ActorNode(selfProbe.ref, id)) with MockProvider))
 
   }
 
@@ -59,7 +59,7 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
       when(kSet.isFull(any())).thenReturn(true)
       when(kSet.getLowestOrder(any())).thenReturn(lowest)
 
-      reqSendProbe.setAutoPilot(new TestActor.AutoPilot {
+      selfProbe.setAutoPilot(new TestActor.AutoPilot {
         def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = msg match {
           case NodeRequest(lowest.ref, PingRequest, _, _) =>
             sender ! AckReply; TestActor.NoAutoPilot
@@ -69,7 +69,7 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
 
       verifyRef ! Add(toAdd)
 
-      reqSendProbe.expectMsg(NodeRequest(lowest.ref, PingRequest, customData = (lowest, toAdd)))
+      selfProbe.expectMsg(NodeRequest(lowest.ref, PingRequest, customData = (lowest, toAdd)))
 
       verify(kSet, never()).add(any())
     }
@@ -83,7 +83,7 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
       when(kSet.contains(lowest)).thenReturn(true)
       when(kSet.getLowestOrder(any())).thenReturn(lowest)
 
-      reqSendProbe.setAutoPilot(new TestActor.AutoPilot {
+      selfProbe.setAutoPilot(new TestActor.AutoPilot {
         def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = msg match {
           case NodeRequest(lowest.ref, PingRequest, _, _) =>
             sender ! RequestTimeout(PingRequest, customData = (lowest, toAdd)); 
@@ -96,7 +96,7 @@ class KBucketSetActorTest extends BaseTestKit("KBucketSpec") with BaseKBucketFix
 
       verifyRef ! Add(toAdd)
 
-      reqSendProbe.expectMsg(NodeRequest(lowest.ref, PingRequest,  customData = (lowest, toAdd)))
+      selfProbe.expectMsg(NodeRequest(lowest.ref, PingRequest,  customData = (lowest, toAdd)))
 
       awaitAssert(verify(kSet).add(toAdd))
     }

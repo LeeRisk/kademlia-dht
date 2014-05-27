@@ -10,7 +10,7 @@ import com.tommo.kademlia.protocol.Message._
 import com.tommo.kademlia.protocol.RequestDispatcher.NodeRequest
 import LookupNode._
 
-class LookupNode(selfNode: ActorNode, kBucketSetRef: ActorRef, reqDispatcherRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) extends FSM[State, Data] with ActorLogging {
+class LookupNode(selfNode: ActorNode, kBucketSetRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) extends FSM[State, Data] with ActorLogging {
   import context._
 
   startWith(Initial, Empty)
@@ -38,7 +38,7 @@ class LookupNode(selfNode: ActorNode, kBucketSetRef: ActorRef, reqDispatcherRef:
   })
 
   private def sendRequest(toQuery: Map[Id, NodeQuery], lookupId: Id) {
-    toQuery.foreach { case (_, NodeQuery(ref, _, _)) => reqDispatcherRef ! NodeRequest(ref, remoteKClosest(lookupId, kBucketSize)) }
+    toQuery.foreach { case (_, NodeQuery(ref, _, _)) => selfNode.ref ! NodeRequest(ref, remoteKClosest(lookupId, kBucketSize)) }
     setTimer("roundTimer", RoundEnd, roundTimeOut, false)
   }
 
@@ -107,8 +107,8 @@ class LookupNode(selfNode: ActorNode, kBucketSetRef: ActorRef, reqDispatcherRef:
 
 object LookupNode {
   trait Provider {
-    def newLookupNodeActor(selfNode: ActorNode, kBucketSetRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration): Actor =
-      new LookupNode(selfNode, kBucketSetRef, reqSender, kBucketSize, alpha, roundTimeOut)
+    def newLookupNodeActor(selfNode: ActorNode, kBucketSetRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration): Actor =
+      new LookupNode(selfNode, kBucketSetRef, kBucketSize, alpha, roundTimeOut)
   }
 
   case class FindKClosest(searchId: Id)

@@ -39,7 +39,7 @@ class StoreActorTest extends BaseTestKit("StoreSpec") with BaseFixture {
     import mockConfig._
 
     val kBucketProbe = TestProbe()
-    val senderProbe = TestProbe()
+    val selfProbe = TestProbe()
     val lookupProbe = TestProbe()
     val refreshProbe = TestProbe()
 
@@ -47,7 +47,7 @@ class StoreActorTest extends BaseTestKit("StoreSpec") with BaseFixture {
 
     def advanceClockBy(ms: Long) = when(mockClock.getTime()).thenReturn(ms)
 
-    val verifyRef = TestActorRef[StoreActor[Int]](Props(new StoreActor[Int](id, kBucketProbe.ref, senderProbe.ref, refreshProbe.ref, lookupProbe.ref) with MockStoreClock))
+    val verifyRef = TestActorRef[StoreActor[Int]](Props(new StoreActor[Int](ActorNode(selfProbe.ref, id), kBucketProbe.ref, refreshProbe.ref, lookupProbe.ref) with MockStoreClock))
 
     val aTTL = 10 seconds
   }
@@ -95,7 +95,7 @@ class StoreActorTest extends BaseTestKit("StoreSpec") with BaseFixture {
 
       verify(mockStore).findCloserThan(id, Id("1010"))
 
-      senderProbe.expectMsgAllOf(NodeRequest(closerNode.ref, StoreRequest(duplicateOne._1, RemoteValue(replicateOne._2, ttl), 1), false),
+      selfProbe.expectMsgAllOf(NodeRequest(closerNode.ref, StoreRequest(duplicateOne._1, RemoteValue(replicateOne._2, ttl), 1), false),
         NodeRequest(closerNode.ref, StoreRequest(replicateTwo._1, RemoteValue(replicateTwo._2, ttl), 0), false))
     }
   }
@@ -124,7 +124,7 @@ class StoreActorTest extends BaseTestKit("StoreSpec") with BaseFixture {
       val ttl = mockConfig.expireRemote - (10 milliseconds)
 
       verifyRef ! result
-      senderProbe.expectMsgAllOf(kclosest.map(n => NodeRequest(n.ref, StoreRequest(result.searchId, RemoteValue(1, ttl), 0))): _*)
+      selfProbe.expectMsgAllOf(kclosest.map(n => NodeRequest(n.ref, StoreRequest(result.searchId, RemoteValue(1, ttl), 0))): _*)
     }
   }
 

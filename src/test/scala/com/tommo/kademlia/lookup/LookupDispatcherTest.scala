@@ -20,11 +20,11 @@ class LookupDispatcherTest extends BaseTestKit("LookupDispatcher") with BaseFixt
     val lookupNodeProbe = TestProbe()
 
     trait MockProvider extends LookupNode.Provider with LookupValue.Provider {
-      override def newLookupValueActor(selfNode: ActorNode, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) = wrapActorRef(lookupValueProbe.ref)
-      override def newLookupNodeActor(selfNode: ActorNode, kBucketSetRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) = wrapActorRef(lookupNodeProbe.ref)
+      override def newLookupValueActor(selfNode: ActorNode, kBucketRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) = wrapActorRef(lookupValueProbe.ref)
+      override def newLookupNodeActor(selfNode: ActorNode, kBucketSetRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) = wrapActorRef(lookupNodeProbe.ref)
     }
     
-    val verifyRef = TestActorRef[LookupDispatcher](Props(new LookupDispatcher(ActorNode(TestProbe().ref, id), TestProbe().ref, kProbe.ref, timerProbe.ref) with MockProvider))
+    val verifyRef = TestActorRef[LookupDispatcher](Props(new LookupDispatcher(ActorNode(TestProbe().ref, id), kProbe.ref, timerProbe.ref) with MockProvider))
 
     def expectGetRandomIdInSameBucketAs(id: Id) = kProbe.fishForMessage() {
       case GetRandomIdInSameBucketAs(anId) if id == anId => true

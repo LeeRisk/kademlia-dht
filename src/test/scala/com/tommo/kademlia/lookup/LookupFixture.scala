@@ -12,8 +12,8 @@ abstract class LookupFixture(testKit: BaseTestKit) extends BaseFixture {
 
   import testKit._
 
+  val selfProbe = TestProbe()
   val kClosestProbe = TestProbe()
-  val reqSendProbe = TestProbe()
 
   val toFindId = mockZeroId(4)
   val lookupReq = Lookup(toFindId, testActor)
