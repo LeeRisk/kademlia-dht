@@ -20,9 +20,11 @@ a) Starting a node
 b) API
 
 
-1) Adding a (key, value)
 
+1) Generate an ID that represents a hashed byte stream
 
-2) Retrieving a key
+2) Generate an ID using a random generator
 
+3) Retrieving a value by key
 
+4) Adding a (key, value)
