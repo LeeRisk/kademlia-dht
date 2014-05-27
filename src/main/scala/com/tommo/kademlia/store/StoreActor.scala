@@ -18,8 +18,8 @@ import com.tommo.kademlia.lookup._
 object StoreActor {
 
   trait Provider[V] {
-    def storeActor(selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRef, lookupRef: ActorRef)(implicit config: KadConfig): Actor =
-      new StoreActor[V](selfNode, kBucketRef, timerRef, lookupRef) with Clock with InMemoryStore[V]
+    def storeActor(selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRef, lookupNodeDispatcher: ActorRef)(implicit config: KadConfig): Actor =
+      new StoreActor[V](selfNode, kBucketRef, timerRef, lookupNodeDispatcher) with Clock with InMemoryStore[V]
   }
 
   private[store] case class InsertMetaData(generation: Int, currTime: Epoch, ttl: FiniteDuration, originalPublish: Boolean)
@@ -40,7 +40,7 @@ object StoreActor {
   case class ExpireValue(generation: Int)
 }
 
-class StoreActor[V](selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRef, lookupRef: ActorRef)(implicit val config: KadConfig) extends Actor {
+class StoreActor[V](selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRef, lookupNodeDispatcher: ActorRef)(implicit val config: KadConfig) extends Actor {
   this: Store[V] with Clock =>
 
   import StoreActor._
@@ -54,7 +54,7 @@ class StoreActor[V](selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRe
     kBucketRef ! UnregisterListener(self)
   }
 
-  val metaMap = Map[Id, InsertMetaData]() // invariant - a key exists in a store then it also exists in this map
+  val metaMap = Map[Id, InsertMetaData]() // invariant - if a key exists in the underlying store then it also exists in this map
 
   def receive = {
     case insertMsg: Insert[V] =>
@@ -63,11 +63,20 @@ class StoreActor[V](selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRe
       updateAndDo(key, expireRemote, true) {
         meta =>
           insert(key, value)
-          lookupRef ! LookupNode.FindKClosest(key)
+          lookupNodeDispatcher ! LookupNodeFSM.FindKClosest(key)
           timerRef ! Republish(key, republishOriginal, RepublishValue(meta.generation))
       }
+      
+    case Get(key) => 
+      get(key) match {
+        case Some(aValue) => sender ! executeFn(key, GetResult[V](None)) {
+          meta => GetResult(Some((aValue, getCurrTTL(meta))))
+        }
+        
+        case _ => sender ! GetResult(None)
+      }
 
-    case LookupNode.Result(key, nodes) =>
+    case LookupNodeFSM.Result(key, nodes) =>
       get(key) match { // if kclosest returned after an expiration timer executed then don't do anything
         case Some(toStore) => executeFn(key, ()) {
           meta => nodes.map(n => NodeRequest(n.ref, StoreRequest(key, RemoteValue(toStore, getCurrTTL(meta)), meta.generation))).foreach(selfNode.ref ! _)
@@ -131,7 +140,7 @@ class StoreActor[V](selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRe
     case RefreshDone(key: Id, RepublishValue(gen)) =>
       updateAndDo(key, expireRemote, true, generation = gen + 1) {
         meta =>
-          lookupRef ! LookupNode.FindKClosest(key)
+          lookupNodeDispatcher ! LookupNodeFSM.FindKClosest(key)
           timerRef ! Republish(key, republishOriginal, RepublishValue(meta.generation))
       }
   }

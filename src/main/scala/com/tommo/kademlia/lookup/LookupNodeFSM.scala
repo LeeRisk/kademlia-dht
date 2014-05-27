@@ -8,9 +8,9 @@ import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.protocol.{ ActorNode, Request }
 import com.tommo.kademlia.protocol.Message._
 import com.tommo.kademlia.protocol.RequestDispatcher.NodeRequest
-import LookupNode._
+import LookupNodeFSM._
 
-class LookupNode(selfNode: ActorNode, kBucketSetRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) extends FSM[State, Data] with ActorLogging {
+class LookupNodeFSM(selfNode: ActorNode, kBucketSetRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration) extends FSM[State, Data] with ActorLogging {
   import context._
 
   startWith(Initial, Empty)
@@ -105,10 +105,10 @@ class LookupNode(selfNode: ActorNode, kBucketSetRef: ActorRef, kBucketSize: Int,
 
 }
 
-object LookupNode {
+object LookupNodeFSM {
   trait Provider {
     def newLookupNodeActor(selfNode: ActorNode, kBucketSetRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration): Actor =
-      new LookupNode(selfNode, kBucketSetRef, kBucketSize, alpha, roundTimeOut)
+      new LookupNodeFSM(selfNode, kBucketSetRef, kBucketSize, alpha, roundTimeOut)
   }
 
   case class FindKClosest(searchId: Id)

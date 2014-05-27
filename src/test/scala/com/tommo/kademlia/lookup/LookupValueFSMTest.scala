@@ -5,8 +5,8 @@ import akka.actor.FSM._
 import scala.collection.immutable.TreeMap
 import scala.concurrent.duration._
 
-import LookupValue._
-import LookupNode._
+import LookupValueFSM._
+import LookupNodeFSM._
 import com.tommo.kademlia.BaseFixture
 import com.tommo.kademlia.BaseTestKit
 import com.tommo.kademlia.protocol.Message.{ FindValueReply, FindValueRequest, CacheStoreRequest }
@@ -16,13 +16,14 @@ import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.store.StoreActor._
 import com.tommo.kademlia.protocol.Message._
 
-class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
-  class Fixture extends LookupFixture(LookupValueTest.this) {
+class LookupValueFSMTest extends BaseTestKit("LookupFSMValueSpec") with BaseFixture {
+  class Fixture extends LookupFixture(LookupValueFSMTest.this) {
     import mockConfig._
 
     val someRef = TestProbe().ref
+    val storeProbe = TestProbe()
     
-    val ref = TestFSMRef(new LookupValue[Int](ActorNode(selfProbe.ref, id), kClosestProbe.ref, kBucketSize, roundConcurrency, roundTimeOut))
+    val ref = TestFSMRef(new LookupValueFSM[Int](ActorNode(selfProbe.ref, id), kClosestProbe.ref, storeProbe.ref, kBucketSize, roundConcurrency, roundTimeOut))
     val listOfNodes = ActorNode(someRef, aRandomId(kBucketSize)) :: ActorNode(someRef, aRandomId(kBucketSize)) :: Nil
   }
 
@@ -37,7 +38,7 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
     new Fixture {
       val searchId = aRandomId
       ref ! FindValue(searchId)
-      selfProbe.expectMsg(Get(searchId))
+      storeProbe.expectMsg(Get(searchId))
     }
   }
   
@@ -51,7 +52,7 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
   
   test("return result as Result(Left(value))") {
     new Fixture {
-      ref.underlyingActor.returnResultsAs(aRandomId, listOfNodes) shouldBe LookupValue.Result(Left(listOfNodes))
+      ref.underlyingActor.returnResultsAs(aRandomId, listOfNodes) shouldBe LookupValueFSM.Result(Left(listOfNodes))
     }
   }
 
@@ -65,7 +66,7 @@ class LookupValueTest extends BaseTestKit("LookupValueSpec") with BaseFixture {
 
       awaitAssert(ref.stateName shouldBe FinalizeValue)
       
-      expectMsg(LookupValue.Result(Right(3)))
+      expectMsg(LookupValueFSM.Result(Right(3)))
     }
   }
   

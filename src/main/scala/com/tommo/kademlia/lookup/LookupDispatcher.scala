@@ -1,48 +1,60 @@
 package com.tommo.kademlia.lookup
 
-import scala.concurrent.duration.FiniteDuration
 import akka.actor.{ Actor, ActorRef, Props }
-
-import com.tommo.kademlia.routing.KBucketSetActor._
-import com.tommo.kademlia.identity.Id
-import com.tommo.kademlia.util.EventSource
-import com.tommo.kademlia.KadConfig
-import com.tommo.kademlia.util.RefreshActor._
+import scala.concurrent.duration._
 import com.tommo.kademlia.protocol.ActorNode
-import LookupDispatcher._
+import com.tommo.kademlia.util.EventSource
+import com.tommo.kademlia.identity.Id
+import com.tommo.kademlia.KadConfig
 
-class LookupDispatcher(selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRef)(implicit val config: KadConfig) extends Actor {
-  self: LookupNode.Provider with LookupValue.Provider =>
+abstract class LookupDispatcher extends Actor with EventSource {
+  import LookupDispatcher._
 
+  final def receive = eventSourceReceive orElse lookupReceive
+
+  def lookupReceive: Receive
+
+  protected def broadcast(id: Id) {
+    sendEvent(Lookup(id))
+  }
+}
+
+class NodeLookup(selfNode: ActorNode, kBucketRef: ActorRef)(implicit val config: KadConfig) extends LookupDispatcher {
+  this: LookupNodeFSM.Provider =>
+
+  import LookupNodeFSM.FindKClosest
   import config._
 
-  override def preStart() {
-    kBucketRef ! GetNumKBuckets
+  def lookupReceive = {
+    case req @ FindKClosest(id) =>
+      val nodeFSM = context.actorOf(Props(newLookupNodeActor(selfNode, kBucketRef, kBucketSize, roundConcurrency, roundTimeOut)))
+      nodeFSM forward req
+      broadcast(id)
   }
+}
 
-  def receive = {
-    case NumKBuckets(bucketCount) => kBucketRef ! GetRandomId((0 until bucketCount).toList)
-    case RandomId(randIds) => randIds.foreach(r => timerRef ! RefreshBucketTimer(r._1, r._2, refreshStaleKBucket))
-    case RefreshDone(_, id: Id) => lookup(id)
-    case LookupNode.FindKClosest(id: Id) => lookup(id)
-    case LookupValue.FindValue(id: Id) => lookup(id, lookupValue)
-  }
+class ValueLookup(selfNode: ActorNode, kBucketRef: ActorRef, storeRef: ActorRef)(implicit val config: KadConfig) extends LookupDispatcher {
+  this: LookupValueFSM.Provider =>
 
-  def lookupNode() = context.actorOf(Props(newLookupNodeActor(selfNode, kBucketRef, kBucketSize, roundConcurrency, roundTimeOut)))
-  def lookupValue() = context.actorOf(Props(newLookupValueActor(selfNode, kBucketRef, kBucketSize, roundConcurrency, roundTimeOut)))
+  import config._
+  import LookupValueFSM.FindValue
 
-  def lookup(id: Id, lookupFn: => ActorRef = lookupNode) {
-    lookupFn forward id
-    kBucketRef ! GetRandomIdInSameBucketAs(id)
+  def lookupReceive = {
+    case req @ FindValue(id) =>
+      val nodeFSM = context.actorOf(Props(newLookupValueFSM(selfNode, kBucketRef, storeRef, kBucketSize, roundConcurrency, roundTimeOut)))
+      nodeFSM forward req
+      broadcast(id)
   }
 }
 
 object LookupDispatcher {
+  case class Lookup(id: Id)
+
   trait Provider {
-    def newLookupDispatcher(selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRef)(implicit config: KadConfig): Actor =
-      new LookupDispatcher(selfNode, kBucketRef, timerRef) with LookupNode.Provider with LookupValue.Provider
+    def newLookupNodeDispatcher(selfNode: ActorNode, kBucketRef: ActorRef)(implicit config: KadConfig): Actor =
+      new NodeLookup(selfNode, kBucketRef) with LookupNodeFSM.Provider
+
+    def newLookupValueDispatcher(selfNode: ActorNode, kBucketRef: ActorRef, storeRef: ActorRef)(implicit config: KadConfig): Actor =
+      new ValueLookup(selfNode, kBucketRef, storeRef) with LookupValueFSM.Provider
   }
-
-  case class RefreshBucketTimer(val key: Int, val value: Id, val after: FiniteDuration, val refreshKey: String = "refreshBucket") extends Refresh
-
 }

@@ -1,6 +1,6 @@
 package com.tommo.kademlia.lookup
 
-import LookupNode._
+import LookupNodeFSM._
 import akka.testkit.{ TestFSMRef, TestProbe }
 import akka.actor.FSM._
 import scala.collection.immutable.TreeMap
@@ -13,13 +13,13 @@ import com.tommo.kademlia.BaseFixture
 import com.tommo.kademlia.BaseTestKit
 import com.tommo.kademlia.protocol.ActorNode
 
-class LookupNodeTest extends BaseTestKit("LookupNodeSpec") with BaseFixture {
+class LookupNodeFSMTest extends BaseTestKit("LookupNodeFSMSpec") with BaseFixture {
 
-  class Fixture extends LookupFixture(LookupNodeTest.this) {
+  class Fixture extends LookupFixture(LookupNodeFSMTest.this) {
     import mockConfig._
     val mockTimeOut = mockConfig.roundTimeOut
     
-    lazy val ref = TestFSMRef(new LookupNode(ActorNode(selfProbe.ref, id), kClosestProbe.ref, kBucketSize, roundConcurrency, mockTimeOut))
+    lazy val ref = TestFSMRef(new LookupNodeFSM(ActorNode(selfProbe.ref, id), kClosestProbe.ref, kBucketSize, roundConcurrency, mockTimeOut))
 
     lazy val underlyingFsm = ref.underlyingActor
   }

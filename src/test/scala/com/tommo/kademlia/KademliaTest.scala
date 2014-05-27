@@ -13,12 +13,12 @@ class KademliaTest extends BaseTestKit("KademliaSpec") with BaseFixture {
     val newProbe = TestProbe()
     val existingProbe = TestProbe()
 
-    trait MockProviderWrapper extends KadActorProvider {
+    trait MockProviderWrapper extends KadActorProvider[Int] {
       override def newNetwork(self: Id)(implicit config: KadConfig): Actor = wrapActorRef(newProbe.ref)
       override def joinNetwork(self: Id, existing: ExistingHost)(implicit config: KadConfig): Actor = wrapActorRef(existingProbe.ref)
     }
 
-    val kad = new Kademlia(id) with MockProviderWrapper
+    val kad = new Kademlia[Int](id) with MockProviderWrapper
   }
 
   test("start actor system with correct name") {

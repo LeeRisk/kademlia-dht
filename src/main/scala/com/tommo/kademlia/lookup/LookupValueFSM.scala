@@ -8,24 +8,24 @@ import com.tommo.kademlia.protocol.Message.{ FindValueReply, FindValueRequest, C
 import com.tommo.kademlia.protocol.ActorNode
 import com.tommo.kademlia.protocol.RequestDispatcher._
 import com.tommo.kademlia.store.StoreActor._
-import LookupNode._
-import LookupValue._
+import LookupNodeFSM._
+import LookupValueFSM._
 
 import akka.actor.ActorRef
 
-class LookupValue[V](selfNode: ActorNode, kBucketRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration)
-  extends LookupNode(selfNode, kBucketRef, kBucketSize, alpha, roundTimeOut) {
+class LookupValueFSM[V](selfNode: ActorNode, kBucketRef: ActorRef, storeRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration)
+  extends LookupNodeFSM(selfNode, kBucketRef, kBucketSize, alpha, roundTimeOut) {
 
   override def remoteKClosest(lookupId: Id, k: Int) = FindValueRequest(lookupId, k)
 
-  when(Initial){
+  when(Initial) {
     case Event(req @ FindValue(searchId), _) =>
-      selfNode.ref ! Get(searchId)
+      storeRef ! Get(searchId)
       stay using Lookup(searchId, sender)
-    case Event(res: GetResult[V], req: Lookup) => 
+    case Event(res: GetResult[V], req: Lookup) =>
       res.value match {
         case Some(v) => goto(FinalizeValue) using FinalizeValueData(req, v._1)
-        case None => 
+        case None =>
           self.tell(FindKClosest(req.id), req.sender)
           stay using req
       }
@@ -47,27 +47,26 @@ class LookupValue[V](selfNode: ActorNode, kBucketRef: ActorRef, kBucketSize: Int
       }
   }
 
-  override def returnResultsAs(searchId: Id, kclosest: List[ActorNode]) = LookupValue.Result(Left(kclosest))
+  override def returnResultsAs(searchId: Id, kclosest: List[ActorNode]) = LookupValueFSM Result (Left(kclosest))
 
-  when(FinalizeValue) {
+  when(FinalizeValue)({
     case Event(Start, FinalizeValueData(req, value)) =>
-      req.sender ! LookupValue.Result(Right(value))
+      req.sender ! LookupValueFSM.Result(Right(value))
       stop()
-  }
+  })
 
   onTransition {
     case QueryNode -> FinalizeValue => initStateTimer("startFinalizeValue")
   }
 }
 
-object LookupValue {
-  
+object LookupValueFSM {
   trait Provider {
-    def newLookupValueActor(selfNode: ActorNode, kBucketRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration): Actor = 
-      new LookupValue(selfNode, kBucketRef, kBucketSize, alpha, roundTimeOut)
+    def newLookupValueFSM(selfNode: ActorNode, kBucketSetRef: ActorRef, storeRef: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration): Actor =
+      new LookupValueFSM(selfNode, kBucketSetRef, storeRef, kBucketSize, alpha, roundTimeOut)
   }
-  
-  case class FindValue(searchId: Id) 
+
+  case class FindValue(searchId: Id)
   case class Result[V](result: Either[List[ActorNode], V])
 
   case object FinalizeValue extends State

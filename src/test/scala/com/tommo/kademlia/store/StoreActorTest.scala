@@ -61,6 +61,24 @@ class StoreActorTest extends BaseTestKit("StoreSpec") with BaseFixture {
     }
   }
 
+  test("invoke get when Get msg received") {
+    new Fixture {
+      val keyPair = (aRandomId, 1)
+      verifyRef ! insertKey(keyPair)
+      
+      advanceClockBy(10)
+      val ttl = mockConfig.expireRemote - (10 milliseconds)
+      
+      when(mockStore.get(keyPair._1)).thenReturn(Some(100))
+      
+      verifyRef ! Get(keyPair._1)
+
+      expectMsg(GetResult(Some(100, ttl)))
+      
+      verify(mockStore).get(keyPair._1)
+    }
+  }
+
   test("start republish value for original publisher") {
     new Fixture {
       val keyPair = (aRandomId, 1)
@@ -106,7 +124,7 @@ class StoreActorTest extends BaseTestKit("StoreSpec") with BaseFixture {
       when(mockStore.get(anInsert.key)).thenReturn(Some(1))
       verifyRef ! anInsert
 
-      lookupProbe.expectMsg(LookupNode.FindKClosest(anInsert.key))
+      lookupProbe.expectMsg(LookupNodeFSM.FindKClosest(anInsert.key))
     }
   }
 
@@ -117,7 +135,7 @@ class StoreActorTest extends BaseTestKit("StoreSpec") with BaseFixture {
       val keyPair = (aRandomId, 1)
       verifyRef ! insertKey(keyPair)
 
-      val result = LookupNode.Result(keyPair._1, kclosest)
+      val result = LookupNodeFSM.Result(keyPair._1, kclosest)
       when(mockStore.get(result.searchId)).thenReturn(Some(1))
 
       advanceClockBy(10)
