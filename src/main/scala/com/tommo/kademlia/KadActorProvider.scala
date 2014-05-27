@@ -5,7 +5,7 @@ import Kademlia._
 import akka.actor.Actor
 
 trait KadActorProvider {
-	def newNetwork(self: Id)(implicit config: KadConfig): Actor = new KadActor(self)
-	def joinNetwork(self: Id, existing: ExistingHost)(implicit config: KadConfig): Actor = new KadActor(self)
+	def newNetwork(self: Id)(implicit config: KadConfig): Actor = null; //new KadActor(self)
+	def joinNetwork(self: Id, existing: ExistingHost)(implicit config: KadConfig): Actor = null; //new KadActor(self)
 }
 

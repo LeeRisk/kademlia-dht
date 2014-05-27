@@ -10,7 +10,7 @@ import RequestDispatcher._
 import com.tommo.kademlia.identity.Id
 import com.tommo.kademlia.routing.KBucketSetActor.Add
 
-private[protocol] abstract class AuthActor[V](kBucketActor: ActorRef, timeout: Duration)(implicit cta: ClassTag[V]) extends Actor with ActorLogging {
+private[protocol] abstract class AuthActor[V](selfNode: ActorRef, timeout: Duration)(implicit cta: ClassTag[V]) extends Actor with ActorLogging {
   val toEchoId = Random.nextInt
 
   var requestor = context.system.deadLetters
@@ -32,7 +32,7 @@ private[protocol] abstract class AuthActor[V](kBucketActor: ActorRef, timeout: D
   private def authCheck: Receive = {
     case reply: AuthReply if reply.echoId == toEchoId =>
       authSuccess(reply)
-      if (addToKBucket) kBucketActor ! Add(ActorNode(sender, reply.sender))
+      if (addToKBucket) selfNode ! Add(ActorNode(sender, reply.sender))
       finish()
   }
 
@@ -61,7 +61,7 @@ private[protocol] abstract class AuthActor[V](kBucketActor: ActorRef, timeout: D
 
 }
 
-private[protocol] class SenderAuthActor(val selfNode: ActorNode, kBucketActor: ActorRef, node: ActorRef, discoverNewNode: Boolean, customData: Option[Any], timeout: Duration) extends AuthActor[Request](kBucketActor, timeout) {
+private[protocol] class SenderAuthActor(val selfNode: ActorNode, node: ActorRef, discoverNewNode: Boolean, customData: Option[Any], timeout: Duration) extends AuthActor[Request](selfNode.ref, timeout) {
   var request =  Option.empty[Request]
 
   override val addToKBucket = discoverNewNode
@@ -90,7 +90,7 @@ private[protocol] class SenderAuthActor(val selfNode: ActorNode, kBucketActor: A
   }
 }
 
-private[protocol] class ReceiverAuthActor(selfNode: ActorNode, kBucketActor: ActorRef, requestHandler: ActorRef, timeout: Duration) extends AuthActor[AuthSenderRequest](kBucketActor, timeout) {
+private[protocol] class ReceiverAuthActor(selfNode: ActorNode, requestHandler: ActorRef, timeout: Duration) extends AuthActor[AuthSenderRequest](selfNode.ref, timeout) {
   var toEchoBack = 0
   var mutRequest = Option.empty[MutableRequest]
 
@@ -131,10 +131,10 @@ private[protocol] class ReceiverAuthActor(selfNode: ActorNode, kBucketActor: Act
 
 object AuthActor {
   trait Provider {
-    def authReceiver(selfNode: ActorNode, kbucketSetRef: ActorRef, requestHandler: ActorRef, timeout: Duration): Actor =
-      new ReceiverAuthActor(selfNode, kbucketSetRef, requestHandler, timeout)
+    def authReceiver(selfNode: ActorNode, requestHandler: ActorRef, timeout: Duration): Actor =
+      new ReceiverAuthActor(selfNode, requestHandler, timeout)
     
-    def authSender(selfNode: ActorNode, kBucketActor: ActorRef, node: ActorRef, 
-        discoverNewNode: Boolean, customData: Option[Any], timeout: Duration): Actor = new SenderAuthActor(selfNode, kBucketActor, node, discoverNewNode, customData, timeout)
+    def authSender(selfNode: ActorNode, node: ActorRef, 
+        discoverNewNode: Boolean, customData: Option[Any], timeout: Duration): Actor = new SenderAuthActor(selfNode, node, discoverNewNode, customData, timeout)
   }
 }

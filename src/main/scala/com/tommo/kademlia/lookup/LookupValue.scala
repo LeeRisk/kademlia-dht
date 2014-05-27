@@ -13,14 +13,14 @@ import LookupValue._
 
 import akka.actor.ActorRef
 
-class LookupValue[V](selfNode: ActorNode, storeRef: ActorRef, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration)
+class LookupValue[V](selfNode: ActorNode, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration)
   extends LookupNode(selfNode, kBucketRef, reqSender, kBucketSize, alpha, roundTimeOut) {
 
   override def remoteKClosest(lookupId: Id, k: Int) = FindValueRequest(lookupId, k)
 
   when(Initial){
     case Event(req @ FindValue(searchId), _) =>
-      storeRef ! Get(searchId)
+      selfNode.ref ! Get(searchId)
       stay using Lookup(searchId, sender)
     case Event(res: GetResult[V], req: Lookup) => 
       res.value match {
@@ -63,8 +63,8 @@ class LookupValue[V](selfNode: ActorNode, storeRef: ActorRef, kBucketRef: ActorR
 object LookupValue {
   
   trait Provider {
-    def newLookupValueActor(selfNode: ActorNode, storeRef: ActorRef, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration): Actor = 
-      new LookupValue(selfNode, storeRef, kBucketRef, reqSender, kBucketSize, alpha, roundTimeOut)
+    def newLookupValueActor(selfNode: ActorNode, kBucketRef: ActorRef, reqSender: ActorRef, kBucketSize: Int, alpha: Int, roundTimeOut: FiniteDuration): Actor = 
+      new LookupValue(selfNode, kBucketRef, reqSender, kBucketSize, alpha, roundTimeOut)
   }
   
   case class FindValue(searchId: Id) 

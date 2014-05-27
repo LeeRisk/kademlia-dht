@@ -16,36 +16,35 @@ import Message._
 
 class RequestDispatcherTest extends BaseTestKit("SenderSpec") with BaseProtocolFixture {
   val someProbe = TestProbe()
-  val kBucketProbe = TestProbe()
   val selfNode = ActorNode(TestProbe().ref, id)
   val reqHandlerProbe = TestProbe()
 
   lazy val mockProvider = mock[AuthActor.Provider]
 
   trait MockAuthProvider extends AuthActor.Provider {
-    override def authSender(selfNode: ActorNode, kBucketActor: ActorRef, node: ActorRef, discoverNewNode: Boolean,
+    override def authSender(selfNode: ActorNode, node: ActorRef, discoverNewNode: Boolean,
       customData: Option[Any], timeout: Duration) = {
-      mockProvider.authSender(selfNode, kBucketActor, node, discoverNewNode, customData, timeout)
+      mockProvider.authSender(selfNode, node, discoverNewNode, customData, timeout)
       wrapActorRef(someProbe.ref)
     }
 
-    override def authReceiver(selfNode: ActorNode, kbucketSetRef: ActorRef, requestHandler: ActorRef, timeout: Duration) = {
-      mockProvider.authReceiver(selfNode, kbucketSetRef, requestHandler, timeout)
+    override def authReceiver(selfNode: ActorNode, requestHandler: ActorRef, timeout: Duration) = {
+      mockProvider.authReceiver(selfNode, requestHandler, timeout)
       wrapActorRef(someProbe.ref)
     }
 
   }
 
-  val verifyRef = TestActorRef[RequestDispatcher](Props(new RequestDispatcher(selfNode, kBucketProbe.ref, reqHandlerProbe.ref, mockConfig.requestTimeOut) with MockAuthProvider))
+  val verifyRef = TestActorRef[RequestDispatcher](Props(new RequestDispatcher(selfNode, reqHandlerProbe.ref, mockConfig.requestTimeOut) with MockAuthProvider))
 
   test("upon receiving a node request, create actor returned from authSender") {
     verifyRef ! NodeRequest(someProbe.ref, MockRequest(), false, customData = "custom data")
-    awaitAssert(verify(mockProvider).authSender(selfNode, kBucketProbe.ref, someProbe.ref, false, Some("custom data"), mockConfig.requestTimeOut))
+    awaitAssert(verify(mockProvider).authSender(selfNode, someProbe.ref, false, Some("custom data"), mockConfig.requestTimeOut))
   }
 
   test("upon receiving a AuthSenderRequest, create actor returned from authSender") {
     verifyRef ! AuthSenderRequest(MockRequest(), 123)
-    awaitAssert(verify(mockProvider).authReceiver(selfNode, kBucketProbe.ref, reqHandlerProbe.ref, mockConfig.requestTimeOut))
+    awaitAssert(verify(mockProvider).authReceiver(selfNode, reqHandlerProbe.ref, mockConfig.requestTimeOut))
   }
 
   test("forward the request using the sender") {

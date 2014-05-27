@@ -16,7 +16,7 @@ import org.scalatest.OneInstancePerTest
 class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture with OneInstancePerTest {
 
   trait BaseFixture {
-    val bucketProbe = TestProbe()
+    val selfProbe = TestProbe()
   }
 
   /* Test base class Auth */
@@ -27,7 +27,7 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
 
     when(mockAuth.addToKBucket).thenReturn(true)
 
-    class MockAuthActor extends AuthActor[MockRequest](bucketProbe.ref, mockConfig.requestTimeOut) {
+    class MockAuthActor extends AuthActor[MockRequest](selfProbe.ref, mockConfig.requestTimeOut) {
       override def doInChallenge(msg: MockRequest) = mockAuth.doInChallenge(msg)
       override def authSuccess(reply: AuthReply) = mockAuth.authSuccess(reply)
       override val addToKBucket = mockAuth.addToKBucket
@@ -57,14 +57,14 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
     }
   }
 
-  test("add sender to kBucketActor after confirming authencity and addToKBucket is true") {
+  test("add sender self node after confirming authencity and addToKBucket is true") {
     new AuthFixture {
       verifyRef.underlyingActor.init = true
       val msg = Add(ActorNode(self, mockZeroId(4)))
 
       verifyRef ! mockAuthReply(verifyRef)
 
-      bucketProbe.expectMsg(msg)
+      selfProbe.expectMsg(msg)
     }
   }
 
@@ -77,7 +77,7 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
 
       verifyRef ! mockAuthReply(verifyRef)
 
-      bucketProbe.expectNoMsg(500 millisecond)
+      selfProbe.expectNoMsg(500 millisecond)
     }
   }
 
@@ -99,10 +99,10 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
   /* Test SenderAuth */
 
   trait SenderAuthFixTure extends BaseFixture {
-    val selfNode = ActorNode(TestProbe().ref, id)
+    val selfNode = ActorNode(selfProbe.ref, id)
     val nodeProbe = TestProbe()
     lazy val customData: Option[Any] = None
-    val verifyRef = TestActorRef[SenderAuthActor](Props(new SenderAuthActor(selfNode, bucketProbe.ref, nodeProbe.ref, true, customData, mockConfig.requestTimeOut)))
+    val verifyRef = TestActorRef[SenderAuthActor](Props(new SenderAuthActor(selfNode, nodeProbe.ref, true, customData, mockConfig.requestTimeOut)))
     verifyRef.underlyingActor.requestor = testActor
   }
 
@@ -149,9 +149,9 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
   /* Test ReceiverAuth */
   trait ReceiverAuthFixTure extends BaseFixture {
     val requestProbe = TestProbe()
-    val selfNode = ActorNode(TestProbe().ref, id)
+    val selfNode = ActorNode(selfProbe.ref, id)
 
-    val verifyRef = TestActorRef[ReceiverAuthActor](Props(new ReceiverAuthActor(selfNode, bucketProbe.ref, requestProbe.ref, mockConfig.requestTimeOut)))
+    val verifyRef = TestActorRef[ReceiverAuthActor](Props(new ReceiverAuthActor(selfNode, requestProbe.ref, mockConfig.requestTimeOut)))
 
     verifyRef.underlyingActor.requestor = testActor
   }
