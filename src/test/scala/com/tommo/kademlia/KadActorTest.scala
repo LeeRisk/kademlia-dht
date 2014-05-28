@@ -5,9 +5,9 @@ import com.tommo.kademlia.routing.{ KBucketSetActor, KBucketRefresher}
 import com.tommo.kademlia.protocol.{ RequestDispatcher, ActorNode }
 import com.tommo.kademlia.store.StoreActor
 import com.tommo.kademlia.protocol.BaseProtocolFixture
-import com.tommo.kademlia.protocol.Message.AuthSenderRequest
+import com.tommo.kademlia.protocol.Message.AuthReceiverRequest
 import akka.actor.{ Actor, ActorRef, Props }
-import akka.testkit.{ TestProbe, TestActorRef }
+import akka.testkit.{ TestProbe, TestFSMRef }
 import scala.concurrent.duration.Duration
 import com.tommo.kademlia.store.StoreActor.{ Get, Insert }
 import com.tommo.kademlia.protocol.RequestDispatcher.NodeRequest
@@ -29,12 +29,19 @@ class KadActorTest extends BaseTestKit("KadActorSpec") with BaseFixture {
       override def storeActor(selfNode: ActorNode, kBucketRef: ActorRef, timerRef: ActorRef, lookupRef: ActorRef)(implicit config: KadConfig) = wrapActorRef(storeProbe.ref)
     }
 
-    val verifyRef = TestActorRef[KadActor[Int]](Props(new KadActor[Int](id) with MockProvider))
+    val verifyRef = TestFSMRef(new KadActor[Int](id) with MockProvider)
+  }
+  
+  test("initial state should be Running") {
+    new Fixture {
+      import KadActor._
+      verifyRef.stateName shouldBe Running
+    }
   }
 
   test("when AuthSenderRequest received forward to RequestDispatcher") {
     new Fixture with BaseProtocolFixture {
-      val auth = AuthSenderRequest(MockRequest(), 123)
+      val auth = AuthReceiverRequest(MockRequest(), 123)
 
       verifyRef ! auth
 
@@ -66,7 +73,7 @@ class KadActorTest extends BaseTestKit("KadActorSpec") with BaseFixture {
   }
 
   test("when NodeRequest received forward to request dispatcher") {
-    new Fixture with BaseProtocolFixture{
+    new Fixture with BaseProtocolFixture {
       val nodeRequest =  NodeRequest(TestProbe().ref, MockRequest())
       verifyRef ! nodeRequest
 

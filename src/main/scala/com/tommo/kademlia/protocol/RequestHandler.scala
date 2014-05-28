@@ -3,8 +3,10 @@ package com.tommo.kademlia.protocol
 import akka.actor.{ Actor, ActorRef, Props }
 import Message._
 import com.tommo.kademlia.store.StoreActor._
+import com.tommo.kademlia.identity.Id
 
-class RequestHandler[V](selfNode: ActorRef, kSet: ActorRef, store: ActorRef) extends Actor {
+
+class RequestHandler[V](kSet: ActorRef, store: ActorRef) extends Actor {
 
   def receive = {
     case PingRequest => sender ! AckReply

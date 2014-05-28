@@ -109,7 +109,7 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
   test("on receiving a request forward an AuthSenderRequest to node") {
     new SenderAuthFixTure {
       verifyRef ! MockRequest()
-      nodeProbe.expectMsg(AuthSenderRequest(MockRequest(), verifyRef.underlyingActor.toEchoId))
+      nodeProbe.expectMsg(AuthReceiverRequest(MockRequest(), verifyRef.underlyingActor.toEchoId))
       nodeProbe.lastSender shouldBe selfNode.ref
     }
   }
@@ -158,7 +158,7 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
 
   test("delegate to requestHandler Actor to handle request before receiving echoId if Request is an immutable one") {
     new ReceiverAuthFixTure {
-      verifyRef ! AuthSenderRequest(MockRequest(), 1)
+      verifyRef ! AuthReceiverRequest(MockRequest(), 1)
       requestProbe.expectMsg(MockRequest())
     }
   }
@@ -167,7 +167,7 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
     new ReceiverAuthFixTure {
       val senderToEchoBack = verifyRef.underlyingActor.toEchoId
 
-      verifyRef ! AuthSenderRequest(MockMutableRequest(), 1)
+      verifyRef ! AuthReceiverRequest(MockMutableRequest(), 1)
       requestProbe.expectNoMsg(500 millisecond)
 
       verifyRef ! AuthSenderReply(mockZeroId(4), senderToEchoBack)
@@ -180,7 +180,7 @@ class AutoActorTest extends BaseTestKit("AuthSpec") with BaseProtocolFixture wit
       val expectedEcho = 1
       verifyRef.underlyingActor.toEchoBack = expectedEcho
 
-      verifyRef ! AuthSenderRequest(MockMutableRequest(), 1)
+      verifyRef ! AuthReceiverRequest(MockMutableRequest(), 1)
 
       expectMsg(AuthRecieverReply(AckReply, expectedEcho, verifyRef.underlyingActor.toEchoId, id))
     }

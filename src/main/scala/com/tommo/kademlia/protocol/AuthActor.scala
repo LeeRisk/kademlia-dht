@@ -68,7 +68,7 @@ private[protocol] class SenderAuthActor(val selfNode: ActorNode, kBucket: ActorR
 
   override def doInChallenge(req: Request) {
       request = Some(req)
-      node.tell(AuthSenderRequest(req, toEchoId), selfNode.ref)
+      node.tell(AuthReceiverRequest(req, toEchoId), selfNode.ref)
       enableTimeout()
   }
 
@@ -90,7 +90,7 @@ private[protocol] class SenderAuthActor(val selfNode: ActorNode, kBucket: ActorR
   }
 }
 
-private[protocol] class ReceiverAuthActor(selfNode: ActorNode, kBucket: ActorRef, requestHandler: ActorRef, timeout: Duration) extends AuthActor[AuthSenderRequest](kBucket, timeout) {
+private[protocol] class ReceiverAuthActor(selfNode: ActorNode, kBucket: ActorRef, requestHandler: ActorRef, timeout: Duration) extends AuthActor[AuthReceiverRequest](kBucket, timeout) {
   var toEchoBack = 0
   var mutRequest = Option.empty[MutableRequest]
 
@@ -99,7 +99,7 @@ private[protocol] class ReceiverAuthActor(selfNode: ActorNode, kBucket: ActorRef
       sendBackReply(reply)
   }
 
-  override def doInChallenge(authReq: AuthSenderRequest) {
+  override def doInChallenge(authReq: AuthReceiverRequest) {
       toEchoBack = authReq.toEcho
       
       val request = authReq.req

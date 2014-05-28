@@ -44,7 +44,7 @@ class RequestDispatcherTest extends BaseTestKit("SenderSpec") with BaseProtocolF
   }
 
   test("upon receiving a AuthSenderRequest, create actor returned from authSender") {
-    verifyRef ! AuthSenderRequest(MockRequest(), 123)
+    verifyRef ! AuthReceiverRequest(MockRequest(), 123)
     awaitAssert(verify(mockProvider).authReceiver(selfNode, kSetRef, reqHandlerProbe.ref, mockConfig.requestTimeOut))
   }
 
@@ -55,8 +55,8 @@ class RequestDispatcherTest extends BaseTestKit("SenderSpec") with BaseProtocolF
   }
 
   test("forward the authrequest using the sender") {
-    verifyRef ! AuthSenderRequest(MockRequest(), 123)
-    someProbe.expectMsgClass(classOf[AuthSenderRequest])
+    verifyRef ! AuthReceiverRequest(MockRequest(), 123)
+    someProbe.expectMsgClass(classOf[AuthReceiverRequest])
     someProbe.lastSender == testActor
   }
 

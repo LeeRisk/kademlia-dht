@@ -51,6 +51,9 @@ object KBucketSetActor {
       new KBucketSetActor(selfNode) with KBucketSet.Provider
   }
   
+  case object GetLowestNonEmpty
+  case class LowestNonEmpty(index: Int)
+  
   case class Add(node: ActorNode)
 
   case object GetNumKBuckets

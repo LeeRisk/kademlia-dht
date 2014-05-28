@@ -41,8 +41,8 @@ class ValueLookup(selfNode: ActorNode, kBucketRef: ActorRef, storeRef: ActorRef)
 
   def lookupReceive = {
     case req @ FindValue(id) =>
-      val nodeFSM = context.actorOf(Props(newLookupValueFSM(selfNode, kBucketRef, storeRef, kBucketSize, roundConcurrency, roundTimeOut)))
-      nodeFSM forward req
+      val valueFSM = context.actorOf(Props(newLookupValueFSM(selfNode, kBucketRef, storeRef, kBucketSize, roundConcurrency, roundTimeOut)))
+      valueFSM forward req
       broadcast(id)
   }
 }

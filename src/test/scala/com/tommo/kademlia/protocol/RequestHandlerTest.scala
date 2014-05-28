@@ -14,15 +14,14 @@ import Message._
 class RequestHandlerTest extends BaseTestKit("RequestHandlerSpec") with BaseFixture {
 
   trait Fixture {
-    val selfProbe = TestProbe()
     val kSetProbe = TestProbe()
     val storeProbe = TestProbe()
 
-    val verifyRef = TestActorRef[RequestHandler[Int]](Props(new RequestHandler(selfProbe.ref, kSetProbe.ref, storeProbe.ref)))
+    val verifyRef = TestActorRef[RequestHandler[Int]](Props(new RequestHandler(kSetProbe.ref, storeProbe.ref)))
 
   }
 
-  test("PingRequest respond with AckReply") {
+  test("PingRequest respond with PingReply") {
     new Fixture {
       verifyRef ! PingRequest
       expectMsg(AckReply)

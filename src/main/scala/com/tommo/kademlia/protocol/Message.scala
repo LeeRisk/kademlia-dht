@@ -29,7 +29,7 @@ object Message {
 
   case class RemoteValue[V](value: V, ttl: FiniteDuration)
 
-  case class AuthSenderRequest(req: Request, val toEcho: Int) extends AuthChallenge
+  case class AuthReceiverRequest(req: Request, val toEcho: Int) extends AuthChallenge
   case class AuthRecieverReply(reply: Reply, echoId: Int, toEcho: Int, val sender: Id) extends AuthReply with AuthChallenge
   case class AuthSenderReply(sender: Id, echoId: Int) extends AuthReply
 }

@@ -13,7 +13,7 @@ class RequestDispatcher(selfNode: ActorNode, kSet: ActorRef, reqHandlerRef: Acto
 
   def receive = {
     case NodeRequest(node, req, discoverNewNode, customData) => context.actorOf(Props(authSender(selfNode, kSet, node, discoverNewNode, customData, timeout))) forward req
-    case authRequest: AuthSenderRequest => context.actorOf(Props(authReceiver(selfNode, kSet, reqHandlerRef, timeout))) forward authRequest
+    case authRequest: AuthReceiverRequest => context.actorOf(Props(authReceiver(selfNode, kSet, reqHandlerRef, timeout))) forward authRequest
   }
 }
 
@@ -25,7 +25,7 @@ object RequestDispatcher {
   
   implicit def customDataToSome(any: Any) = Some(any)
   
-  case class NodeRequest(node: ActorRef, request: Request, discoverNewNode: Boolean = true, customData: Option[Any] = None)
+  case class NodeRequest(node: ActorRef, request: Request, discoverNewNode: Boolean = true, customData: Option[Any] = None) // internal node requests 
   case class RequestTimeout(request: Request, customData: Option[Any] = None)
   case class CustomReply(val reply: Reply, val customData: Any)
   
