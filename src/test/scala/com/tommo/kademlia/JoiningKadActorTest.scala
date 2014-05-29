@@ -113,12 +113,24 @@ class JoiningKadActorTest extends BaseTestKit("JoiningSpec") with BaseFixture {
       verifyRef ! ids
 
       lookupNodeProbe.expectMsgAllOf(expected: _*)
-      
+
       verifyRef.stateName shouldBe Running
     }
   }
 
-  test("stash messages until node is in Running State") {
+  test("throw IllegalArgumentException when node is in the process of joining and an unhandled msg is sent") {
+    new Fixture with BaseProtocolFixture {
+      import scala.concurrent.duration._
+      import scala.concurrent.Await
+      import akka.util.Timeout
+      import akka.pattern.ask
+
+      implicit val timeout = Timeout(5 seconds)
+      
+      intercept[IllegalStateException] {
+        Await.result(verifyRef ? AuthReceiverRequest(MockRequest(), 123), 5 seconds)
+      }
+    }
 
   }
 }

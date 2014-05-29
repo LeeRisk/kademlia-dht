@@ -91,8 +91,14 @@ class JoiningKadActor[V](selfId: Id)(implicit config: KadConfig) extends KadActo
       goto(Running)
   })
 
-
   private def sendMsgIgnoreReply(ref: ActorRef, msg: Any) = ref.tell(msg, context.system.deadLetters)
+
+  whenUnhandled {
+    case Event(_, _) => 
+      sender ! akka.actor.Status.Failure(new IllegalStateException("Node is still joining network"))
+      stay
+  }
+  
 } 
 
 

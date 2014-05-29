@@ -13,12 +13,11 @@ trait BaseFixture {
     val name = "testKadSystem"
     val host = mockHost // don't change settings as it effects other tests; instead extend
     val kBucketSize = 4
-    val addressSpace = 4
     val roundConcurrency = 2
     val refreshStaleKBucket = 1 second
     val republishOriginal = 24 hours
     val roundTimeOut = 10 seconds
-    val requestTimeOut = 10 seconds
+    val requestTimeOut = 5 seconds
     val republishRemote = 1 hour
     val expireRemote = 10 hours
   }
