@@ -1,4 +1,0 @@
-1. supervision for various Actors
-2. seperate dispatcher for Kademlia.scala
-3. make Node return host
-4. insert returns a list of kclosest as opposed to unit
